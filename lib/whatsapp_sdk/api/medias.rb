@@ -119,6 +119,55 @@ module WhatsappSdk
 
       private
 
+      # Create upload session for template media using Graph API
+      def create_upload_session(app_id:, file_path:, type:, access_token:)
+        file_size = File.size(file_path)
+
+        params = {
+          file_length: file_size,
+          file_type: type
+        }
+
+        # Use Graph API endpoint directly
+        connection = Faraday.new(url: "https://graph.facebook.com") do |faraday|
+          faraday.request :json
+          faraday.response :json
+          faraday.adapter Faraday.default_adapter
+        end
+
+        response = connection.post("/v23.0/#{app_id}/uploads") do |req|
+          req.headers['Authorization'] = "Bearer #{access_token}"
+          req.headers['Content-Type'] = 'application/json'
+          req.body = params
+        end
+
+        raise Api::Responses::HttpResponseError.new(http_status: response.status, body: response.body) unless response.success?
+
+        response.body
+      end
+
+      # Upload file to the created session
+      def upload_file_to_session(session_id:, file_path:, access_token:)
+        # Use Graph API endpoint directly
+        connection = Faraday.new(url: "https://graph.facebook.com") do |faraday|
+          faraday.response :json
+          faraday.adapter Faraday.default_adapter
+        end
+
+        file_data = File.binread(file_path)
+
+        response = connection.post("/v23.0/#{session_id}") do |req|
+          req.headers['Authorization'] = "Bearer #{access_token}"
+          req.headers['file_offset'] = '0'
+          req.headers['Content-Type'] = 'application/octet-stream'
+          req.body = file_data
+        end
+
+        raise Api::Responses::HttpResponseError.new(http_status: response.status, body: response.body) unless response.success?
+
+        response.body
+      end
+
       def map_media_type_to_content_type_header(media_type)
         # Media type maps 1:1 to the content-type header.
         # The list of supported types are in MediaTypes::SUPPORTED_TYPES.
