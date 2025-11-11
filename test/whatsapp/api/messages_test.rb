@@ -177,7 +177,7 @@ module WhatsappSdk
       def test_send_audio_message_with_success_response
         VCR.use_cassette("messages/send_audio_message_with_success_response") do
           message_response = @messages_api.send_audio(
-            sender_id: @sender_id, recipient_number: @recipient_number, audio_id: "914268667232441"
+            sender_id: @sender_id, recipient_number: @recipient_number, audio_id: "914268667232441", voice: false
           )
 
           assert_message_response({
@@ -190,7 +190,7 @@ module WhatsappSdk
       def test_send_audio_raises_an_error_if_link_and_id_are_not_provided
         assert_raises(Resource::Errors::MissingArgumentError) do
           @messages_api.send_audio(
-            sender_id: 123_123, recipient_number: 56_789, link: nil, audio_id: nil
+            sender_id: 123_123, recipient_number: 56_789, link: nil, audio_id: nil, voice: false
           )
         end
       end
@@ -200,7 +200,7 @@ module WhatsappSdk
           link = "https://lookaside.fbsbx.com/whatsapp_business/attachments/?mid=914268667232441&" \
                  "ext=1728913145&hash=ATtV69tQN8OKiNmN_0SYR73eo3kshm76rQwUvIpfbVAHrA"
           message_response = @messages_api.send_audio(
-            sender_id: @sender_id, recipient_number: @recipient_number, link: link
+            sender_id: @sender_id, recipient_number: @recipient_number, link: link, voice: false
           )
 
           assert_message_response({
@@ -213,7 +213,7 @@ module WhatsappSdk
       def test_send_audio_message_with_an_audio_id
         VCR.use_cassette("messages/send_audio_message_with_success_response") do
           message_response = @messages_api.send_audio(
-            sender_id: @sender_id, recipient_number: @recipient_number, audio_id: "914268667232441"
+            sender_id: @sender_id, recipient_number: @recipient_number, audio_id: "914268667232441", voice: false
           )
 
           assert_message_response({
