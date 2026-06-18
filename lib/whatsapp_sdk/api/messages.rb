@@ -7,9 +7,6 @@ module WhatsappSdk
     class Messages < Request
       DEFAULT_HEADERS = { 'Content-Type' => 'application/json' }.freeze
 
-      # Authentication-template button sub-types. BSUID (`recipient`) is not allowed for these.
-      AUTH_TEMPLATE_MARKERS = %w[one_tap zero_tap copy_code].freeze
-
       # Send a text message.
       #
       # @param sender_id [Integer] Sender' phone number.
@@ -382,8 +379,6 @@ module WhatsappSdk
                 "components or components_json is required"
         end
 
-        validate_recipient_not_auth_template!(recipient, components, components_json)
-
         params = {
           messaging_product: "whatsapp",
           recipient_type: "individual",
@@ -486,17 +481,6 @@ module WhatsappSdk
         params.delete(:to) if recipient_number.nil?
         params[:recipient] = recipient if recipient_number.nil? && recipient
         params
-      end
-
-      # BSUID (`recipient`) is not supported by authentication templates
-      # (one_tap, zero_tap, copy_code).
-      def validate_recipient_not_auth_template!(recipient, components, components_json)
-        return unless recipient
-
-        serialized = (components_json || components).to_s
-        return unless AUTH_TEMPLATE_MARKERS.any? { |marker| serialized.include?(marker) }
-
-        raise ArgumentError, "recipient (BSUID) is not allowed for authentication templates"
       end
     end
   end

@@ -801,15 +801,6 @@ module WhatsappSdk
         )
       end
 
-      def test_send_template_with_recipient_on_auth_template_raises
-        assert_raises(ArgumentError) do
-          @messages_api.send_template(
-            sender_id: 123_123, recipient: "BR.123", name: "otp", language: "en_US",
-            components_json: [{ type: "button", sub_type: "one_tap" }]
-          )
-        end
-      end
-
       private
 
       def valid_response
