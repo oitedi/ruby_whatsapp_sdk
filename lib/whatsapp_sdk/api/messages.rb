@@ -121,7 +121,9 @@ module WhatsappSdk
       # @param voice [Boolean] Whether the audio is a voice note.
       # @param recipient [String] Recipient' Business-Scoped User ID (BSUID). Optional alternative to recipient_number.
       # @return [MessageDataResponse] Response object.
-      def send_audio(sender_id:, recipient_number: nil, audio_id: nil, link: nil, message_id: nil, voice: false, recipient: nil)
+      def send_audio(
+        sender_id:, recipient_number: nil, audio_id: nil, link: nil, message_id: nil, voice: false, recipient: nil
+      )
         raise Resource::Errors::MissingArgumentError, "audio_id or link is required" if !audio_id && !link
 
         params = {
