@@ -7,14 +7,18 @@ module WhatsappSdk
     class Messages < Request
       DEFAULT_HEADERS = { 'Content-Type' => 'application/json' }.freeze
 
+      # Authentication-template button sub-types. BSUID (`recipient`) is not allowed for these.
+      AUTH_TEMPLATE_MARKERS = %w[one_tap zero_tap copy_code].freeze
+
       # Send a text message.
       #
       # @param sender_id [Integer] Sender' phone number.
       # @param recipient_number [Integer] Recipient' Phone number.
       # @param message [String] Text to send.
       # @param message_id [String] The id of the message to reply to.
+      # @param recipient [String] Recipient' Business-Scoped User ID (BSUID). Optional alternative to recipient_number.
       # @return [MessageDataResponse] Response object.
-      def send_text(sender_id:, recipient_number:, message:, message_id: nil)
+      def send_text(sender_id:, message:, recipient_number: nil, message_id: nil, recipient: nil)
         params = {
           messaging_product: "whatsapp",
           to: recipient_number,
@@ -23,6 +27,7 @@ module WhatsappSdk
           text: { body: message }
         }
         params[:context] = { message_id: message_id } if message_id
+        apply_recipient!(params, recipient_number, recipient)
 
         response = send_request(
           endpoint: endpoint(sender_id),
@@ -42,9 +47,10 @@ module WhatsappSdk
       # @param name [String] Location name.
       # @param address [String] Location address.
       # @param message_id [String] The id of the message to reply to.
+      # @param recipient [String] Recipient' Business-Scoped User ID (BSUID). Optional alternative to recipient_number.
       # @return [MessageDataResponse] Response object.
       def send_location(
-        sender_id:, recipient_number:, longitude:, latitude:, name:, address:, message_id: nil
+        sender_id:, longitude:, latitude:, name:, address:, recipient_number: nil, message_id: nil, recipient: nil
       )
         params = {
           messaging_product: "whatsapp",
@@ -59,6 +65,7 @@ module WhatsappSdk
           }
         }
         params[:context] = { message_id: message_id } if message_id
+        apply_recipient!(params, recipient_number, recipient)
 
         response = send_request(
           endpoint: endpoint(sender_id),
@@ -77,9 +84,10 @@ module WhatsappSdk
       # @param link [String] Image link.
       # @param caption [String] Image caption.
       # @param message_id [String] The id of the message to reply to.
+      # @param recipient [String] Recipient' Business-Scoped User ID (BSUID). Optional alternative to recipient_number.
       # @return [MessageDataResponse] Response object.
       def send_image(
-        sender_id:, recipient_number:, image_id: nil, link: nil, caption: "", message_id: nil
+        sender_id:, recipient_number: nil, image_id: nil, link: nil, caption: "", message_id: nil, recipient: nil
       )
         raise Resource::Errors::MissingArgumentError, "image_id or link is required" if !image_id && !link
 
@@ -95,6 +103,7 @@ module WhatsappSdk
                            { id: image_id, caption: caption }
                          end
         params[:context] = { message_id: message_id } if message_id
+        apply_recipient!(params, recipient_number, recipient)
 
         response = send_request(
           endpoint: endpoint(sender_id),
@@ -112,8 +121,10 @@ module WhatsappSdk
       # @param audio_id [String] Audio ID.
       # @param link [String] Audio link.
       # @param message_id [String] The id of the message to reply to.
+      # @param voice [Boolean] Whether the audio is a voice note.
+      # @param recipient [String] Recipient' Business-Scoped User ID (BSUID). Optional alternative to recipient_number.
       # @return [MessageDataResponse] Response object.
-      def send_audio(sender_id:, recipient_number:, audio_id: nil, link: nil, message_id: nil, voice: false)
+      def send_audio(sender_id:, recipient_number: nil, audio_id: nil, link: nil, message_id: nil, voice: false, recipient: nil)
         raise Resource::Errors::MissingArgumentError, "audio_id or link is required" if !audio_id && !link
 
         params = {
@@ -124,6 +135,7 @@ module WhatsappSdk
         }
         params[:audio] = link ? { link: link, voice: voice } : { id: audio_id, voice: voice }
         params[:context] = { message_id: message_id } if message_id
+        apply_recipient!(params, recipient_number, recipient)
 
         response = send_request(
           endpoint: endpoint(sender_id),
@@ -143,9 +155,10 @@ module WhatsappSdk
       # @param link [String] Image link.
       # @param caption [String] Image caption.
       # @param message_id [String] The id of the message to reply to.
+      # @param recipient [String] Recipient' Business-Scoped User ID (BSUID). Optional alternative to recipient_number.
       # @return [MessageDataResponse] Response object.
       def send_video(
-        sender_id:, recipient_number:, video_id: nil, link: nil, caption: "", message_id: nil
+        sender_id:, recipient_number: nil, video_id: nil, link: nil, caption: "", message_id: nil, recipient: nil
       )
         raise Resource::Errors::MissingArgumentError, "video_id or link is required" if !video_id && !link
 
@@ -161,6 +174,7 @@ module WhatsappSdk
                            { id: video_id, caption: caption }
                          end
         params[:context] = { message_id: message_id } if message_id
+        apply_recipient!(params, recipient_number, recipient)
 
         response = send_request(
           endpoint: endpoint(sender_id),
@@ -179,9 +193,11 @@ module WhatsappSdk
       # @param link [String] Image link.
       # @param caption [String] Image caption.
       # @param message_id [String] The id of the message to reply to.
+      # @param recipient [String] Recipient' Business-Scoped User ID (BSUID). Optional alternative to recipient_number.
       # @return [MessageDataResponse] Response object.
       def send_document(
-        sender_id:, recipient_number:, document_id: nil, link: nil, caption: "", message_id: nil, filename: nil
+        sender_id:, recipient_number: nil, document_id: nil, link: nil, caption: "", message_id: nil,
+        filename: nil, recipient: nil
       )
         if !document_id && !link
           raise Resource::Errors::MissingArgumentError,
@@ -201,6 +217,7 @@ module WhatsappSdk
                             end
         params[:document] = params[:document].merge({ filename: filename }) if filename
         params[:context] = { message_id: message_id } if message_id
+        apply_recipient!(params, recipient_number, recipient)
 
         response = send_request(
           endpoint: endpoint(sender_id),
@@ -211,15 +228,16 @@ module WhatsappSdk
         Api::Responses::MessageDataResponse.build_from_response(response: response)
       end
 
-      # Send a document.
+      # Send a sticker.
       #
       # @param sender_id [Integer] Sender' phone number.
       # @param recipient_number [Integer] Recipient' Phone number.
       # @param sticker_id [String] The sticker ID.
       # @param link [String] Image link.
       # @param message_id [String] The id of the message to reply to.
+      # @param recipient [String] Recipient' Business-Scoped User ID (BSUID). Optional alternative to recipient_number.
       # @return [MessageDataResponse] Response object.
-      def send_sticker(sender_id:, recipient_number:, sticker_id: nil, link: nil, message_id: nil)
+      def send_sticker(sender_id:, recipient_number: nil, sticker_id: nil, link: nil, message_id: nil, recipient: nil)
         raise Resource::Errors::MissingArgumentError, "sticker or link is required" if !sticker_id && !link
 
         params = {
@@ -230,6 +248,7 @@ module WhatsappSdk
         }
         params[:sticker] = link ? { link: link } : { id: sticker_id }
         params[:context] = { message_id: message_id } if message_id
+        apply_recipient!(params, recipient_number, recipient)
 
         response = send_request(
           endpoint: endpoint(sender_id),
@@ -248,9 +267,10 @@ module WhatsappSdk
       # @param contacts [Array<Contact>] Contacts.
       # @param contacts_json [Json] Contacts.
       # @param message_id [String] The id of the message to reply to.
+      # @param recipient [String] Recipient' Business-Scoped User ID (BSUID). Optional alternative to recipient_number.
       # @return [MessageDataResponse] Response object.
       def send_contacts(
-        sender_id:, recipient_number:, contacts: nil, contacts_json: {}, message_id: nil
+        sender_id:, recipient_number: nil, contacts: nil, contacts_json: {}, message_id: nil, recipient: nil
       )
         params = {
           messaging_product: "whatsapp",
@@ -260,6 +280,7 @@ module WhatsappSdk
         }
         params[:contacts] = contacts ? contacts.map(&:to_h) : contacts_json
         params[:context] = { message_id: message_id } if message_id
+        apply_recipient!(params, recipient_number, recipient)
 
         response = send_request(
           endpoint: endpoint(sender_id),
@@ -284,9 +305,10 @@ module WhatsappSdk
       # @param interactive_json [Json] The interactive object as a Json.
       #    If you pass interactive_json, you can't pass interactive.
       # @param message_id [String] The id of the message to reply to.
+      # @param recipient [String] Recipient' Business-Scoped User ID (BSUID). Optional alternative to recipient_number.
       # @return [MessageDataResponse] Response object.
       def send_interactive_message(
-        sender_id:, recipient_number:, interactive: nil, interactive_json: nil, message_id: nil
+        sender_id:, recipient_number: nil, interactive: nil, interactive_json: nil, message_id: nil, recipient: nil
       )
         if !interactive && !interactive_json
           raise Resource::Errors::MissingArgumentError,
@@ -306,6 +328,7 @@ module WhatsappSdk
                                  interactive.to_json
                                end
         params[:context] = { message_id: message_id } if message_id
+        apply_recipient!(params, recipient_number, recipient)
 
         response = send_request(
           endpoint: endpoint(sender_id),
@@ -348,14 +371,18 @@ module WhatsappSdk
       # @param language [String] template language.
       # @param components [Component] Component.
       # @param components_json [Json] The component as a Json. If you pass components_json, you can't pass components.
+      # @param recipient [String] Recipient' Business-Scoped User ID (BSUID). Optional alternative to recipient_number.
+      #    Not allowed for authentication templates.
       # @return [MessageDataResponse] Response object.
       def send_template(
-        sender_id:, recipient_number:, name:, language:, components: nil, components_json: nil
+        sender_id:, name:, language:, recipient_number: nil, components: nil, components_json: nil, recipient: nil
       )
         if !components && !components_json
           raise Resource::Errors::MissingArgumentError,
                 "components or components_json is required"
         end
+
+        validate_recipient_not_auth_template!(recipient, components, components_json)
 
         params = {
           messaging_product: "whatsapp",
@@ -373,6 +400,7 @@ module WhatsappSdk
                                          else
                                            components.map(&:to_json)
                                          end
+        apply_recipient!(params, recipient_number, recipient)
 
         response = send_request(
           endpoint: endpoint(sender_id),
@@ -389,8 +417,9 @@ module WhatsappSdk
       # @param recipient_number [Integer] Recipient' Phone number.
       # @param message_id [String] the id of the message to reaction.
       # @param emoji [String] unicode of the emoji to send.
+      # @param recipient [String] Recipient' Business-Scoped User ID (BSUID). Optional alternative to recipient_number.
       # @return [MessageDataResponse] Response object.
-      def send_reaction(sender_id:, recipient_number:, message_id:, emoji:)
+      def send_reaction(sender_id:, message_id:, emoji:, recipient_number: nil, recipient: nil)
         params = {
           messaging_product: "whatsapp",
           recipient_type: "individual",
@@ -401,6 +430,7 @@ module WhatsappSdk
             emoji: emoji
           }
         }
+        apply_recipient!(params, recipient_number, recipient)
 
         response = send_request(
           endpoint: endpoint(sender_id),
@@ -440,6 +470,33 @@ module WhatsappSdk
 
       def endpoint(sender_id)
         "#{sender_id}/messages"
+      end
+
+      # Applies the destination to the payload.
+      # - Phone send (recipient_number present): keeps `to`, never adds `recipient` — payload is
+      #   identical to the pre-BSUID behavior.
+      # - BSUID send (recipient_number absent, recipient present): drops `to` and sets `recipient`
+      #   (the field Meta uses to address a Business-Scoped User ID).
+      # Requires at least one destination.
+      def apply_recipient!(params, recipient_number, recipient)
+        if recipient_number.nil? && recipient.nil?
+          raise Resource::Errors::MissingArgumentError, "recipient_number or recipient is required"
+        end
+
+        params.delete(:to) if recipient_number.nil?
+        params[:recipient] = recipient if recipient_number.nil? && recipient
+        params
+      end
+
+      # BSUID (`recipient`) is not supported by authentication templates
+      # (one_tap, zero_tap, copy_code).
+      def validate_recipient_not_auth_template!(recipient, components, components_json)
+        return unless recipient
+
+        serialized = (components_json || components).to_s
+        return unless AUTH_TEMPLATE_MARKERS.any? { |marker| serialized.include?(marker) }
+
+        raise ArgumentError, "recipient (BSUID) is not allowed for authentication templates"
       end
     end
   end
