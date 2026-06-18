@@ -1,5 +1,9 @@
 # Unreleased
 
+# v 1.0.3.1 (oitedi fork)
+- Add `recipient` (Business-Scoped User ID / BSUID) support to all `Messages#send_*` methods. `recipient_number` is now optional; at least one destination (`recipient_number` or `recipient`) is required. Phone takes precedence when both are given.
+- Validate that `recipient` (BSUID) is not used with authentication templates (`one_tap`, `zero_tap`, `copy_code`).
+
 # v 1.0.3
 -  Fix configuration bug setting `api_version` on Configure. @frenesim [#168](https://github.com/ignacio-chiazzo/ruby_whatsapp_sdk/pull/168)
 

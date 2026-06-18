@@ -727,6 +727,77 @@ module WhatsappSdk
         end
       end
 
+      def test_send_text_with_recipient_bsuid_only_sends_recipient_and_omits_to
+        @messages_api.expects(:send_request).with(
+          endpoint: "123123/messages",
+          params: {
+            messaging_product: "whatsapp",
+            recipient_type: "individual",
+            type: "text",
+            text: { body: "hola" },
+            recipient: "BR.1786593138972580"
+          },
+          headers: { "Content-Type" => "application/json" }
+        ).returns(valid_response)
+
+        @messages_api.send_text(
+          sender_id: 123_123, recipient: "BR.1786593138972580", message: "hola"
+        )
+      end
+
+      def test_send_text_with_both_keeps_to_and_adds_recipient
+        @messages_api.expects(:send_request).with(
+          endpoint: "123123/messages",
+          params: {
+            messaging_product: "whatsapp",
+            to: 56_789,
+            recipient_type: "individual",
+            type: "text",
+            text: { body: "hola" },
+            recipient: "BR.123"
+          },
+          headers: { "Content-Type" => "application/json" }
+        ).returns(valid_response)
+
+        @messages_api.send_text(
+          sender_id: 123_123, recipient_number: 56_789, recipient: "BR.123", message: "hola"
+        )
+      end
+
+      def test_send_text_without_destination_raises
+        assert_raises(WhatsappSdk::Resource::Errors::MissingArgumentError) do
+          @messages_api.send_text(sender_id: 123_123, message: "hola")
+        end
+      end
+
+      def test_send_template_with_recipient_bsuid_sends_recipient
+        @messages_api.expects(:send_request).with(
+          endpoint: "123123/messages",
+          params: {
+            messaging_product: "whatsapp",
+            recipient_type: "individual",
+            type: "template",
+            template: { name: "hello", language: { code: "en_US" }, components: { foo: "bar" } },
+            recipient: "BR.123"
+          },
+          headers: { "Content-Type" => "application/json" }
+        ).returns(valid_response)
+
+        @messages_api.send_template(
+          sender_id: 123_123, recipient: "BR.123", name: "hello", language: "en_US",
+          components_json: { foo: "bar" }
+        )
+      end
+
+      def test_send_template_with_recipient_on_auth_template_raises
+        assert_raises(ArgumentError) do
+          @messages_api.send_template(
+            sender_id: 123_123, recipient: "BR.123", name: "otp", language: "en_US",
+            components_json: [{ type: "button", sub_type: "one_tap" }]
+          )
+        end
+      end
+
       private
 
       def valid_response
