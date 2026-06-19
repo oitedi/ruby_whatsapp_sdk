@@ -237,6 +237,13 @@ client.media.delete(media_id: MEDIA_ID)
 # Send a text message
 client.messages.send_text(sender_id: 1234, recipient_number: 112345678, message: "hola")
 
+# Send by Business-Scoped User ID (BSUID) when the phone number is not available
+#   (e.g. the user adopted a WhatsApp username and hid their phone number).
+#   Pass `recipient` with the full BSUID (incl. country code) instead of `recipient_number`.
+#   The payload then uses Meta's `recipient` field and omits `to`. At least one of
+#   `recipient_number` / `recipient` is required. Not supported by authentication templates.
+client.messages.send_text(sender_id: 1234, recipient: "BR.1786593138972580", message: "hola")
+
 # Read a message
 client.messages.read_message(sender_id: 1234, message_id: "wamid.HBgLMTM0M12345678910=")
 

@@ -1,5 +1,8 @@
 # Unreleased
 
+# v 1.0.3.1 (oitedi fork)
+- Add `recipient` (Business-Scoped User ID / BSUID) support to all `Messages#send_*` methods. When `recipient_number` (phone) is given the payload is unchanged (`to`); when only `recipient` is given the payload uses `recipient` and omits `to` (the field Meta uses to address a BSUID). At least one destination is required.
+
 # v 1.0.3
 -  Fix configuration bug setting `api_version` on Configure. @frenesim [#168](https://github.com/ignacio-chiazzo/ruby_whatsapp_sdk/pull/168)
 
