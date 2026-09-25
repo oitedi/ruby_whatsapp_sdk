@@ -16,10 +16,14 @@ module WhatsappSdk
         end
 
         def self.response_error?(response:)
+          return false unless response.is_a?(Hash)
+
           response["error"]
         end
 
         def self.build_from_response(response:)
+          return unless response.is_a?(Hash)
+
           error_response = response["error"]
           return unless error_response
 

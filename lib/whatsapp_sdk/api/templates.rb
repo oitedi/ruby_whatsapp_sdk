@@ -18,6 +18,18 @@ module WhatsappSdk
         end
       end
 
+      # Get a template
+      # @param template_id [String] Required. The template ID.
+      # @return [Template] Template object.
+      def get(template_id:)
+        response = send_request(
+          endpoint: template_id,
+          http_method: "get"
+        )
+
+        Resource::Template.from_hash(response)
+      end
+
       # Create a template
       #
       # @param business_id [Integer] Business Id.
@@ -28,11 +40,13 @@ module WhatsappSdk
       # @param components_json [Component] Components that make up the template. See the list of possible components:
       #   https://developers.facebook.com/docs/whatsapp/business-management-api/message-templates/components
       # @param allow_category_change [Boolean] Optional Allow category change.
+      # @param parameter_format [String] Optional Parameter format. Possible values: named, positional.
       # Set to true to allow us to assign a category based on the template guidelines and the template's contents.
       #   This can prevent your template from being rejected for miscategorization.
       # @return [Template] Template object.
       def create(
-        business_id:, name:, category:, language:, components_json: nil, allow_category_change: nil
+        business_id:, name:, category:, language:, components_json: nil, allow_category_change: nil,
+        parameter_format: nil
       )
         unless WhatsappSdk::Resource::Template::Category.valid?(category)
           raise InvalidCategoryError.new(category: category)
@@ -42,6 +56,10 @@ module WhatsappSdk
           raise WhatsappSdk::Resource::Errors::InvalidLanguageError.new(language: language)
         end
 
+        if parameter_format && !WhatsappSdk::Resource::ParameterObject::Format.valid?(parameter_format)
+          raise WhatsappSdk::Resource::Errors::InvalidParameterFormatError.new(format: parameter_format)
+        end
+
         params = {
           name: name,
           category: category,
@@ -49,6 +67,7 @@ module WhatsappSdk
           components: components_json
         }
         params["allow_category_change"] = allow_category_change if allow_category_change
+        params["parameter_format"] = parameter_format if parameter_format
 
         response = send_request(
           endpoint: "#{business_id}/message_templates",
@@ -77,8 +96,8 @@ module WhatsappSdk
 
         Api::Responses::PaginationRecords.new(
           records: parse_templates(response['data']),
-          before: response['paging']['cursors']['before'],
-          after: response['paging']['cursors']['after']
+          before: response.dig('paging', 'cursors', 'before'),
+          after: response.dig('paging', 'cursors', 'after')
         )
       end
 
@@ -156,11 +175,72 @@ module WhatsappSdk
         Api::Responses::SuccessResponse.success_response?(response: response)
       end
 
+      # Get Template Analytics
+      #
+      # Get analytics data for message templates over a specified time range.
+      # @param business_id [Integer] The business ID.
+      # @param start_timestamp [Integer] The start of the time range to retrieve analytics data, in Unix timestamp.
+      # @param end_timestamp [Integer] The end of the time range to retrieve analytics data, in Unix timestamp.
+      # @param template_ids [Array<String>] An array of template IDs for which to retrieve analytics data.
+      # @param metric_types [Array<String>] Metric types to retrieve; defaults to an empty array.
+      # @param granularity [String] Aggregation interval; defaults to DAILY, the only supported value.
+      # @param after [String, nil] Cursor for the next page; nil requests the first page.
+      # @return [Api::Responses::PaginationRecords] Page of Resource::TemplateAnalytic records with pagination cursors.
+      # @raise [ArgumentError] If a metric type or granularity is unsupported.
+      # @raise [Api::Responses::HttpResponseError] If Graph returns an API error or a server error.
+      def template_analytics(
+        business_id:, start_timestamp:, end_timestamp:, template_ids:, metric_types: [],
+        granularity: WhatsappSdk::Resource::TemplateAnalytic::Granularity::DAILY,
+        after: nil
+      )
+        if !metric_types.empty? && !valid_metric_types?(metric_types)
+          valid_types = WhatsappSdk::Resource::TemplateAnalytic::MetricType::METRIC_TYPES.join(', ')
+
+          raise ArgumentError, "Invalid metric type. Valid types are: #{valid_types}."
+        end
+
+        if granularity != WhatsappSdk::Resource::TemplateAnalytic::Granularity::DAILY
+          raise ArgumentError, "Invalid granularity. The only supported granularity is DAILY."
+        end
+
+        query_params = {
+          start: start_timestamp,
+          end: end_timestamp,
+          template_ids: template_ids.join(","),
+          metric_types: metric_types.join(","),
+          granularity: granularity
+        }
+        query_params[:after] = after if after
+
+        response = send_request(
+          endpoint: "#{business_id}/template_analytics?#{URI.encode_www_form(query_params)}",
+          http_method: "get"
+        )
+
+        Api::Responses::PaginationRecords.new(
+          records: parse_template_analytics(response['data']),
+          before: response.dig('paging', 'cursors', 'before'),
+          after: response.dig('paging', 'cursors', 'after')
+        )
+      end
+
       private
 
       def parse_templates(templates_data)
         templates_data.map do |template|
           Resource::Template.from_hash(template)
+        end
+      end
+
+      def parse_template_analytics(analytics_data)
+        analytics_data.map do |analytic|
+          Resource::TemplateAnalytic.from_hash(analytic)
+        end
+      end
+
+      def valid_metric_types?(metric_types)
+        metric_types.all? do |type|
+          WhatsappSdk::Resource::TemplateAnalytic::MetricType.valid?(type)
         end
       end
     end

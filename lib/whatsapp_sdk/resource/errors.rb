@@ -49,6 +49,19 @@ module WhatsappSdk
       class InvalidInteractiveActionSectionRow < Error; end
 
       class InvalidInteractiveFooter < Error; end
+
+      # Raised when a template parameter format is neither "named" nor "positional".
+      class InvalidParameterFormatError < StandardError
+        # @return [Object] Rejected parameter format, retained without conversion.
+        attr_reader :format
+
+        # @param format [Object] Rejected value supplied as the template's parameter_format.
+        def initialize(format:)
+          @format = format
+
+          super("Invalid Parameter Format. The possible values are: named and positional.")
+        end
+      end
     end
   end
 end

@@ -7,10 +7,10 @@ module WhatsappSdk
   module Api
     class Client
       API_VERSIONS = [
-        'v24.0', 'v23.0', 'v22.0', 'v21.0', 'v20.0', 'v19.0', 'v18.0', 'v17.0', 'v16.0', 'v15.0',
-        'v14.0', 'v13.0', 'v12.0', 'v11.0', 'v10.0', 'v9.0', 'v8.0', 'v7.0', 'v6.0', 'v5.0', 'v4.0',
-        'v3.3', 'v3.2', 'v3.1', 'v3.0', 'v2.12', 'v2.11', 'v2.10', 'v2.9', 'v2.8', 'v2.7', 'v2.6',
-        'v2.5', 'v2.4', 'v2.3', 'v2.2', 'v2.1'
+        'v25.0', 'v24.0', 'v23.0', 'v22.0', 'v21.0', 'v20.0', 'v19.0', 'v18.0', 'v17.0', 'v16.0', 'v15.0', 'v14.0',
+        'v13.0', 'v12.0', 'v11.0', 'v10.0', 'v9.0', 'v8.0', 'v7.0', 'v6.0', 'v5.0', 'v4.0',
+        'v3.3', 'v3.2', 'v3.1', 'v3.0', 'v2.12', 'v2.11', 'v2.10', 'v2.9', 'v2.8', 'v2.7',
+        'v2.6', 'v2.5', 'v2.4', 'v2.3', 'v2.2', 'v2.1'
       ].freeze
 
       def initialize(
@@ -43,6 +43,13 @@ module WhatsappSdk
         @business_profiles ||= WhatsappSdk::Api::BusinessProfile.new(self)
       end
 
+      # Access business account operations using this client's configuration.
+      #
+      # @return [Api::BusinessAccount] Cached business account API accessor.
+      def business_accounts
+        @business_accounts ||= WhatsappSdk::Api::BusinessAccount.new(self)
+      end
+
       def templates
         @templates ||= WhatsappSdk::Api::Templates.new(self)
       end
@@ -54,13 +61,13 @@ module WhatsappSdk
 
         response = faraday_request.public_send(http_method, endpoint, request_params(params, headers), headers)
 
-        if response.status > 499 || Api::Responses::GenericErrorResponse.response_error?(response: response.body)
-          raise Api::Responses::HttpResponseError.new(http_status: response.status, body: JSON.parse(response.body))
+        parsed_body = parse_response_body(response.body)
+
+        if response.status > 499 || Api::Responses::GenericErrorResponse.response_error?(response: parsed_body)
+          raise Api::Responses::HttpResponseError.new(http_status: response.status, body: parsed_body)
         end
 
-        return nil if response.body == ""
-
-        JSON.parse(response.body)
+        parsed_body
       end
 
       def download_file(url:, content_type_header:, file_path: nil)
@@ -80,6 +87,12 @@ module WhatsappSdk
       end
 
       private
+
+      def parse_response_body(body)
+        return nil if body.nil? || body.empty?
+
+        JSON.parse(body)
+      end
 
       def request_params(params, headers)
         return params.to_json if params.is_a?(Hash) && headers['Content-Type'] == 'application/json'
