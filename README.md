@@ -613,3 +613,27 @@ See [CHANGELOG.md](CHANGELOG.md) for a list of changes.
 ## License
 
 The gem is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
+
+
+### Send marketing templates
+
+```ruby
+response = client.messages.send_marketing_template(
+  sender_id: SENDER_ID, recipient_number: RECIPIENT_NUMBER,
+  name: "special_offer", language: "en_US", components_json: [],
+  product_policy: "STRICT"
+)
+response.messages.first.id
+response.messages.first.message_status # Present only when returned by Meta.
+```
+
+This explicitly calls `/marketing_messages`; ordinary `send_template` continues to
+call `/messages`. Use `recipient:` for a BSUID when no phone number is available;
+a supplied phone number takes precedence. Meta disables delivery optimization for
+BSUID sends and rejects templates using `bid_spec` for those recipients.
+
+`product_policy: "CLOUD_API_FALLBACK"` asks Meta to handle fallback; `"STRICT"` forbids
+it. Omitting the option leaves Meta's default unchanged. The SDK never retries a
+failed send or sends a second request to `/messages` after a timeout. Template
+category and account eligibility are enforced by Meta, not inferred from names.
+See [Marketing Messages](https://developers.facebook.com/documentation/business-messaging/whatsapp/marketing-messages/send-marketing-messages/).
