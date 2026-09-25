@@ -631,3 +631,17 @@ Creation leaves the Flow in draft status. Upload returns Graph's raw response, i
 `validation_errors` even when `success` is true. Individual calls do not retry or publish
 implicitly. Business templates, draft recovery, and data exchange endpoint encryption
 remain in the application. See the [Flows API reference](https://developers.facebook.com/docs/whatsapp/flows/reference/flowsapi).
+
+List uploaded assets and configure the public key for a phone number's data exchange endpoint:
+
+```ruby
+assets = client.flows.assets(flow_id: flow["id"], limit: 20)
+assets.records # Raw asset hashes with name, asset_type, and download_url; no automatic download.
+client.phone_numbers.set_public_key(phone_number_id: PHONE_NUMBER_ID,
+                                   business_public_key: File.read("public.pem"))
+key = client.phone_numbers.get_public_key(phone_number_id: PHONE_NUMBER_ID)
+key["business_public_key_signature_status"] # VALID or MISMATCH
+```
+
+Pass the PEM text of a 2048-bit RSA public key. Private key storage and request decryption
+remain in your application. See [Meta's encryption setup](https://developers.facebook.com/documentation/business-messaging/whatsapp/flows/guides/whatsapp-business-encryption).

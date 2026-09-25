@@ -49,6 +49,24 @@ module WhatsappSdk
                      headers: { 'Content-Type' => 'application/json' })
       end
 
+      # List assets without downloading their contents.
+      # @param flow_id [String, Integer] Flow ID.
+      # @param limit [Integer] Maximum records per page.
+      # @param after [String, nil] Cursor from the previous page.
+      # @return [Responses::PaginationRecords] Page of raw asset hashes, including download_url, and cursors.
+      # @raise [Responses::HttpResponseError] If Graph rejects the request.
+      def assets(flow_id:, limit: 100, after: nil)
+        params = { limit: limit }
+        params[:after] = after if after
+        response = send_request(endpoint: "#{flow_id}/assets", http_method: 'get', params: params)
+
+        Responses::PaginationRecords.new(
+          records: response['data'],
+          before: response.dig('paging', 'cursors', 'before'),
+          after: response.dig('paging', 'cursors', 'after')
+        )
+      end
+
       # Upload Flow JSON as multipart data. The file is closed after the request, including on errors.
       # @param flow_id [String, Integer] Draft Flow ID.
       # @param file_path [String] Path to the Flow JSON file.
