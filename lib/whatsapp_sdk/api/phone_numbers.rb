@@ -41,6 +41,52 @@ module WhatsappSdk
         Resource::PhoneNumber.from_hash(response)
       end
 
+      # Add a phone number to a WABA. Verification and registration are separate calls.
+      # @param business_id [String, Integer] WhatsApp Business Account ID.
+      # @param country_code [String] Country calling code, without the plus sign.
+      # @param phone_number [String] Phone number forwarded unchanged to Graph.
+      # @param verified_name [String] Business display name submitted for review.
+      # @return [Responses::IdResponse] Created phone number ID.
+      # @raise [Responses::HttpResponseError] If Graph rejects the request.
+      def add(business_id:, country_code:, phone_number:, verified_name:)
+        response = send_request(
+          endpoint: "#{business_id}/phone_numbers",
+          params: { cc: country_code, phone_number: phone_number, verified_name: verified_name },
+          headers: { 'Content-Type' => 'application/json' }
+        )
+        Responses::IdResponse.new(response['id'])
+      end
+
+      # Request a verification code without automatically verifying or registering the number.
+      # @param phone_number_id [String, Integer] Phone number ID.
+      # @param code_method [String] SMS or VOICE.
+      # @param language [String] Locale for code delivery, such as en_US.
+      # @return [Boolean] Whether Graph accepted the request.
+      # @raise [ArgumentError] If code_method is unsupported.
+      # @raise [Responses::HttpResponseError] If Graph rejects the request.
+      def request_code(phone_number_id:, code_method:, language:)
+        raise ArgumentError, 'code_method must be SMS or VOICE' unless %w[SMS VOICE].include?(code_method)
+
+        response = send_request(
+          endpoint: "#{phone_number_id}/request_code", params: { code_method: code_method, language: language },
+          headers: { 'Content-Type' => 'application/json' }
+        )
+        Responses::SuccessResponse.success_response?(response: response)
+      end
+
+      # Verify ownership of a phone number. Register it separately with register_number.
+      # @param phone_number_id [String, Integer] Phone number ID.
+      # @param code [String] Verification code; pass a string to preserve leading zeroes.
+      # @return [Boolean] Whether verification succeeded.
+      # @raise [Responses::HttpResponseError] If Graph rejects the request.
+      def verify_code(phone_number_id:, code:)
+        response = send_request(
+          endpoint: "#{phone_number_id}/verify_code", params: { code: code },
+          headers: { 'Content-Type' => 'application/json' }
+        )
+        Responses::SuccessResponse.success_response?(response: response)
+      end
+
       # Register a phone number.
       #
       # @param phone_number_id [Integer] The registered number we want to retrieve.

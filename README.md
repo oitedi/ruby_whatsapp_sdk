@@ -606,6 +606,23 @@ Do you want to contribute and are unsure where to start? Ping me on Twitter, and
 
 Check [Contributing](/CONTRIBUTING.MD) file.
 
+### Onboard a phone number
+
+```ruby
+phone = client.phone_numbers.add(
+  business_id: WABA_ID, country_code: "55", phone_number: "5511999999999", verified_name: "Example Store"
+)
+client.phone_numbers.request_code(phone_number_id: phone.id, code_method: "SMS", language: "pt_BR")
+client.phone_numbers.verify_code(phone_number_id: phone.id, code: "001234")
+client.phone_numbers.register_number(phone.id, "123456")
+client.business_accounts.subscribe_app(business_id: WABA_ID)
+```
+
+Each call is explicit. Adding a number does not request a code, verify it, or register it.
+Code delivery accepts `SMS` or `VOICE` and is not retried automatically. Account permissions,
+onboarding state, and storage of identifiers remain the application's responsibility.
+See [Meta onboarding](https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/onboarding-customers-as-a-tech-provider/).
+
 ## Changelog
 
 See [CHANGELOG.md](CHANGELOG.md) for a list of changes.
