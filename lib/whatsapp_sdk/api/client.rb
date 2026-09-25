@@ -13,15 +13,31 @@ module WhatsappSdk
         'v2.6', 'v2.5', 'v2.4', 'v2.3', 'v2.2', 'v2.1'
       ].freeze
 
+      # @param access_token [String, nil] Token used by this client.
+      # @param api_version [String] Graph API version.
+      # @param logger [Logger, nil] Optional Faraday logger.
+      # @param logger_options [Hash] Faraday logging options.
+      # @param adapter [Symbol, Class] Faraday adapter; require optional adapters before constructing the client.
+      # @param request_options [Hash] Faraday request options, such as open_timeout and timeout in seconds.
+      # @param multipart_request_options [Hash] Overrides applied only to multipart requests.
+      # @param legacy_logger_options [Hash] Faraday logging options supplied as keywords.
       def initialize(
         access_token = WhatsappSdk.configuration.access_token,
         api_version = WhatsappSdk.configuration.api_version,
         logger = nil,
-        logger_options = {}
+        logger_options = {},
+        adapter: ::Faraday.default_adapter,
+        request_options: {},
+        multipart_request_options: {},
+        **legacy_logger_options
       )
         @access_token = access_token
         @logger = logger
-        @logger_options = logger_options
+        @logger_options = logger_options.merge(legacy_logger_options)
+        @adapter = adapter
+        @request_options = request_options.dup.freeze
+        @multipart_request_options = multipart_request_options.dup.freeze
+        @connections = {}
 
         validate_api_version(api_version)
         @api_version = api_version
@@ -86,6 +102,13 @@ module WhatsappSdk
         response
       end
 
+      # Close cached Faraday connections. Later requests create fresh connections.
+      # @return [void]
+      def close
+        @connections.each_value(&:close)
+        @connections.clear
+      end
+
       private
 
       def parse_response_body(body)
@@ -101,10 +124,15 @@ module WhatsappSdk
       end
 
       def faraday(url:, multipart: false)
-        ::Faraday.new(url) do |client|
+        @connections[[url, multipart]] ||= build_faraday(url, multipart)
+      end
+
+      def build_faraday(url, multipart)
+        options = multipart ? @request_options.merge(@multipart_request_options) : @request_options
+        ::Faraday.new(url, request: options) do |client|
           client.request(:multipart) if multipart
           client.request(:url_encoded)
-          client.adapter(::Faraday.default_adapter)
+          client.adapter(@adapter)
           client.headers['Authorization'] = "Bearer #{@access_token}" unless @access_token.nil?
           client.response(:logger, @logger, @logger_options) unless @logger.nil?
         end
