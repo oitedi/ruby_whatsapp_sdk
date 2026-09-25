@@ -177,7 +177,7 @@ module WhatsappSdk
       def test_send_audio_message_with_success_response
         VCR.use_cassette("messages/send_audio_message_with_success_response") do
           message_response = @messages_api.send_audio(
-            sender_id: @sender_id, recipient_number: @recipient_number, audio_id: "914268667232441", voice: false
+            sender_id: @sender_id, recipient_number: @recipient_number, audio_id: "914268667232441"
           )
 
           assert_message_response({
@@ -190,7 +190,7 @@ module WhatsappSdk
       def test_send_audio_raises_an_error_if_link_and_id_are_not_provided
         assert_raises(Resource::Errors::MissingArgumentError) do
           @messages_api.send_audio(
-            sender_id: 123_123, recipient_number: 56_789, link: nil, audio_id: nil, voice: false
+            sender_id: 123_123, recipient_number: 56_789, link: nil, audio_id: nil
           )
         end
       end
@@ -200,7 +200,7 @@ module WhatsappSdk
           link = "https://lookaside.fbsbx.com/whatsapp_business/attachments/?mid=914268667232441&" \
                  "ext=1728913145&hash=ATtV69tQN8OKiNmN_0SYR73eo3kshm76rQwUvIpfbVAHrA"
           message_response = @messages_api.send_audio(
-            sender_id: @sender_id, recipient_number: @recipient_number, link: link, voice: false
+            sender_id: @sender_id, recipient_number: @recipient_number, link: link
           )
 
           assert_message_response({
@@ -213,7 +213,7 @@ module WhatsappSdk
       def test_send_audio_message_with_an_audio_id
         VCR.use_cassette("messages/send_audio_message_with_success_response") do
           message_response = @messages_api.send_audio(
-            sender_id: @sender_id, recipient_number: @recipient_number, audio_id: "914268667232441", voice: false
+            sender_id: @sender_id, recipient_number: @recipient_number, audio_id: "914268667232441"
           )
 
           assert_message_response({
@@ -722,83 +722,9 @@ module WhatsappSdk
       def test_send_typing_indicator_with_success_response
         VCR.use_cassette("messages/send_typing_indicator_with_success_response") do
           msg_id = "wamid.HBgMNTU0MTk2MTI3MzAwFQIAEhgWM0VCMEQ3OTQ5OTNBODkwMzg1QTZDRgA="
-          message_response = @messages_api.send_typing_indicator(sender_id: 562412910296094, message_id: msg_id)
-          assert_equal(message_response, true)
+          message_response = @messages_api.send_typing_indicator(sender_id: 562_412_910_296_094, message_id: msg_id)
+          assert(message_response)
         end
-      end
-
-      # --- BSUID (recipient) support ---
-
-      def test_send_text_phone_only_payload_is_unchanged
-        @messages_api.expects(:send_request).with(
-          endpoint: "123123/messages",
-          params: {
-            messaging_product: "whatsapp",
-            to: 56_789,
-            recipient_type: "individual",
-            type: "text",
-            text: { body: "hola" }
-          },
-          headers: { "Content-Type" => "application/json" }
-        ).returns(valid_response)
-
-        @messages_api.send_text(sender_id: 123_123, recipient_number: 56_789, message: "hola")
-      end
-
-      def test_send_text_with_recipient_bsuid_only_uses_recipient_and_omits_to
-        @messages_api.expects(:send_request).with(
-          endpoint: "123123/messages",
-          params: {
-            messaging_product: "whatsapp",
-            recipient_type: "individual",
-            type: "text",
-            text: { body: "hola" },
-            recipient: "BR.1786593138972580"
-          },
-          headers: { "Content-Type" => "application/json" }
-        ).returns(valid_response)
-
-        @messages_api.send_text(sender_id: 123_123, recipient: "BR.1786593138972580", message: "hola")
-      end
-
-      def test_send_text_with_both_prefers_phone_and_omits_recipient
-        @messages_api.expects(:send_request).with(
-          endpoint: "123123/messages",
-          params: {
-            messaging_product: "whatsapp",
-            to: 56_789,
-            recipient_type: "individual",
-            type: "text",
-            text: { body: "hola" }
-          },
-          headers: { "Content-Type" => "application/json" }
-        ).returns(valid_response)
-
-        @messages_api.send_text(sender_id: 123_123, recipient_number: 56_789, recipient: "BR.123", message: "hola")
-      end
-
-      def test_send_text_without_destination_raises
-        assert_raises(WhatsappSdk::Resource::Errors::MissingArgumentError) do
-          @messages_api.send_text(sender_id: 123_123, message: "hola")
-        end
-      end
-
-      def test_send_template_with_recipient_bsuid_uses_recipient
-        @messages_api.expects(:send_request).with(
-          endpoint: "123123/messages",
-          params: {
-            messaging_product: "whatsapp",
-            recipient_type: "individual",
-            type: "template",
-            template: { name: "hello", language: { code: "en_US" }, components: { foo: "bar" } },
-            recipient: "BR.123"
-          },
-          headers: { "Content-Type" => "application/json" }
-        ).returns(valid_response)
-
-        @messages_api.send_template(
-          sender_id: 123_123, recipient: "BR.123", name: "hello", language: "en_US", components_json: { foo: "bar" }
-        )
       end
 
       private

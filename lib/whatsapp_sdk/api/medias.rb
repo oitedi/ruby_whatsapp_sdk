@@ -117,56 +117,34 @@ module WhatsappSdk
         Api::Responses::SuccessResponse.success_response?(response: response)
       end
 
+      # Create a Graph upload session for template media or a business profile photo.
+      # Returns the raw response containing the upload session "id".
+      # Uses the client's API version and token unless access_token is supplied.
+      def create_upload_session(app_id:, file_path:, type:, access_token: nil)
+        raise FileNotFoundError.new(file_path: file_path) unless File.file?(file_path)
+
+        headers = { 'Content-Type' => 'application/json' }
+        headers['Authorization'] = "Bearer #{access_token}" if access_token
+        send_request(
+          endpoint: "./#{app_id}/uploads",
+          params: { file_name: File.basename(file_path), file_length: File.size(file_path), file_type: type },
+          headers: headers
+        )
+      end
+
+      # Upload the complete file to a Graph upload session, starting at offset zero.
+      # Returns the raw response containing the reusable media handle "h".
+      # This does not resume partial uploads or retry failed requests.
+      def upload_file_to_session(session_id:, file_path:, access_token: nil)
+        raise FileNotFoundError.new(file_path: file_path) unless File.file?(file_path)
+
+        headers = { 'Content-Type' => 'application/octet-stream', 'file_offset' => '0' }
+        headers['Authorization'] = "Bearer #{access_token}" if access_token
+        # ponytail: buffers the whole file; stream bytes if large uploads become a requirement.
+        send_request(endpoint: "./#{session_id}", params: File.binread(file_path), headers: headers)
+      end
+
       private
-
-      # Create upload session for template media using Graph API
-      def create_upload_session(app_id:, file_path:, type:, access_token:)
-        file_size = File.size(file_path)
-
-        params = {
-          file_length: file_size,
-          file_type: type
-        }
-
-        # Use Graph API endpoint directly
-        connection = Faraday.new(url: "https://graph.facebook.com") do |faraday|
-          faraday.request :json
-          faraday.response :json
-          faraday.adapter Faraday.default_adapter
-        end
-
-        response = connection.post("/v23.0/#{app_id}/uploads") do |req|
-          req.headers['Authorization'] = "Bearer #{access_token}"
-          req.headers['Content-Type'] = 'application/json'
-          req.body = params
-        end
-
-        raise Api::Responses::HttpResponseError.new(http_status: response.status, body: response.body) unless response.success?
-
-        response.body
-      end
-
-      # Upload file to the created session
-      def upload_file_to_session(session_id:, file_path:, access_token:)
-        # Use Graph API endpoint directly
-        connection = Faraday.new(url: "https://graph.facebook.com") do |faraday|
-          faraday.response :json
-          faraday.adapter Faraday.default_adapter
-        end
-
-        file_data = File.binread(file_path)
-
-        response = connection.post("/v23.0/#{session_id}") do |req|
-          req.headers['Authorization'] = "Bearer #{access_token}"
-          req.headers['file_offset'] = '0'
-          req.headers['Content-Type'] = 'application/octet-stream'
-          req.body = file_data
-        end
-
-        raise Api::Responses::HttpResponseError.new(http_status: response.status, body: response.body) unless response.success?
-
-        response.body
-      end
 
       def map_media_type_to_content_type_header(media_type)
         # Media type maps 1:1 to the content-type header.

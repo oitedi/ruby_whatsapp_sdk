@@ -1,22 +1,16 @@
 ---
 http_interactions:
 - request:
-    method: post
-    uri: https://graph.facebook.com/v19.0/114503234599312/message_templates
+    method: get
+    uri: https://graph.facebook.com/v19.0/114503234599312/message_templates?limit=100
     body:
-      encoding: UTF-8
-      string: '{"name":"seasonal_promotion","category":"MARKETING","language":"nl","components":[{"type":"BODY","text":"Thank
-        you for your order, {{1}}! Your confirmation number is {{2}}. If you have
-        any questions, please use the buttons below to contact support. Thank you
-        for being a customer!","example":{"body_text":[["Ignacio","860198-230332"]]}},{"type":"BUTTONS","buttons":[{"type":"PHONE_NUMBER","text":"Call","phone_number":"59898400766"},{"type":"URL","text":"Contact
-        Support","url":"https://www.luckyshrub.com/support"}]}],"allow_category_change":true}'
+      encoding: US-ASCII
+      string: ''
     headers:
       Authorization:
       - Bearer <ACCESS_TOKEN>
       User-Agent:
       - Faraday v2.14.0
-      Content-Type:
-      - application/json
       Accept-Encoding:
       - gzip;q=1.0,deflate;q=0.6,identity;q=0.3
       Accept:
@@ -26,6 +20,8 @@ http_interactions:
       code: 200
       message: OK
     headers:
+      Etag:
+      - '"1050253aec7b29caff644806927dabfa81406eee"'
       Content-Type:
       - application/json; charset=UTF-8
       Vary:
@@ -49,26 +45,26 @@ http_interactions:
       Expires:
       - Sat, 01 Jan 2000 00:00:00 GMT
       X-Fb-Request-Id:
-      - A-KIoP1ICxtwZKmVw2c-5mC
+      - Adj74e3qfuPCVjLT7fJWyQK
       X-Fb-Trace-Id:
-      - CKH3M+ZlVZJ
+      - HP8Gsf7vfyk
       X-Fb-Rev:
-      - '1032274475'
+      - '1032248248'
       X-Fb-Debug:
-      - eELB9Cpb0K4ERuUwBw06obnCTml8y8EXz2mb/D9MMModLNurIZG5Th69A9WSJiRB+/Yw8mPCEpr3H0FVcfkmBA==
+      - vQCH5qdXcmb+ES0hrtmSvHeJjxA4hkdaMq7hmPN+MYdnpJK2ofa8yLF8kIHT5rbabYqBP7Jh211O/aEjL8NDdg==
       Date:
-      - Thu, 22 Jan 2026 01:30:21 GMT
+      - Wed, 21 Jan 2026 14:52:23 GMT
       X-Fb-Connection-Quality:
-      - EXCELLENT; q=0.9, rtt=19, rtx=0, c=10, mss=1380, tbw=3420, tp=-1, tpl=-1,
-        uplat=6591, ullat=0
+      - EXCELLENT; q=0.9, rtt=18, rtx=0, c=10, mss=1380, tbw=3447, tp=-1, tpl=-1,
+        uplat=390, ullat=0
       Alt-Svc:
       - h3=":443"; ma=86400
       Connection:
       - keep-alive
       Content-Length:
-      - '67'
+      - '11'
     body:
       encoding: UTF-8
-      string: '{"id":"1297883712183052","status":"PENDING","category":"MARKETING"}'
-  recorded_at: Thu, 22 Jan 2026 01:30:21 GMT
+      string: '{"data":[]}'
+  recorded_at: Wed, 21 Jan 2026 14:52:23 GMT
 recorded_with: VCR 6.3.1

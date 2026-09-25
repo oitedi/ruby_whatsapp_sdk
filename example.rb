@@ -14,6 +14,7 @@ gemfile(true) do
   gem "whatsapp_sdk", path: "../"
   gem "pry"
   gem "pry-nav"
+  gem "debug"
 end
 
 require 'whatsapp_sdk'
@@ -56,12 +57,8 @@ end
 
 client = WhatsappSdk::Api::Client.new
 
-
-
-
 # ############################## Templates API ##############################
 puts "\n\n ------------------ Testing Templates API ------------------------"
-
 # ## Get list of templates
 templates = client.templates.list(business_id: BUSINESS_ID)
 puts "GET Templates list : #{ templates.records.map(&:name) }"
@@ -69,6 +66,13 @@ puts "GET Templates list : #{ templates.records.map(&:name) }"
 ## Get message templates namespace
 template_namespace = client.templates.get_message_template_namespace(business_id: BUSINESS_ID)
 puts "GET template by namespace: #{template_namespace.id}"
+
+## GET
+id = templates.records.first.id
+if id
+  template = client.templates.get(template_id: id)
+  puts "GET template by id: #{template.id}"
+end
 
 # Create a template
 components_json = [
@@ -138,6 +142,12 @@ end
 
 # client.templates.delete(business_id: BUSINESS_ID, name: "name2", hsm_id: "243213188351928") # delete by name and id
 
+## Get template analytics
+analytics = client.templates.template_analytics(
+  business_id: BUSINESS_ID, start_timestamp: 1767236400,
+  end_timestamp: 1767322799, template_ids: [id, new_template.id]
+)
+puts "GET template analytics: #{analytics.records.first}"
 
 
 # ############################## Business API ##############################
@@ -154,6 +164,22 @@ run_and_catch_error("Update business profile") do
   updated_bp = client.business_profiles.update(phone_number_id: SENDER_ID, params: { about: "A cool business" } )
 end
 
+# ############################## Business Account API ##############################
+puts "\n\n\n ------------------ Testing Business Account API -----------------------"
+
+business_account = client.business_accounts.get(BUSINESS_ID)
+puts "GET Business Account by id: #{business_account.name}"
+
+business_account = client.business_accounts.get(BUSINESS_ID, fields: %w[id name account_review_status message_template_namespace] )
+puts "GET Business Account with fields by id: #{business_account.name}, #{business_account.account_review_status}, #{business_account.message_template_namespace}"
+
+updated_ba = client.business_accounts.update(business_id: BUSINESS_ID, params: { name: 'A cool updated business' } )
+puts "UPDATE Business Account by id: #{updated_ba} }"
+
+run_and_catch_error("Update business account") do
+  # message_template_namespace can't be set
+  client.business_accounts.update(business_id: BUSINESS_ID, params: { message_template_namespace: "namespace" } )
+end
 
 
 ############################## Phone Numbers API ##############################

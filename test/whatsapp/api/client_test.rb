@@ -51,6 +51,56 @@ module WhatsappSdk
         assert_nil(response_body)
       end
 
+      def test_send_request_does_not_raise_when_body_text_contains_error_substring
+        payload = {
+          'data' => [{
+            'name' => 'dia_push',
+            'components' => [{ 'type' => 'BODY', 'text' => 'si tu cupón te da algún error, avísanos' }]
+          }]
+        }
+        stub_test_request(:get, response_body: payload)
+
+        response_body = @client.send_request(endpoint: 'test', http_method: 'get')
+
+        assert_equal(payload, response_body)
+      end
+
+      def test_send_request_raises_when_response_has_error_key
+        error_body = { 'error' => { 'message' => 'Invalid OAuth token', 'code' => 190 } }
+        stub_test_request(:get, response_status: 400, response_body: error_body)
+
+        error = assert_raises(Api::Responses::HttpResponseError) do
+          @client.send_request(endpoint: 'test', http_method: 'get')
+        end
+
+        assert_equal(400, error.http_status)
+        assert_equal(error_body, error.body)
+      end
+
+      def test_send_request_raises_for_5xx_responses
+        error_body = { 'error' => { 'message' => 'Internal server error' } }
+        stub_test_request(:get, response_status: 502, response_body: error_body)
+
+        error = assert_raises(Api::Responses::HttpResponseError) do
+          @client.send_request(endpoint: 'test', http_method: 'get')
+        end
+
+        assert_equal(502, error.http_status)
+      end
+
+      def test_send_request_raises_http_response_error_for_5xx_with_empty_body
+        stub_request(:get, "#{ApiConfiguration::API_URL}/#{ApiConfiguration::DEFAULT_API_VERSION}/test")
+          .to_return(status: 503, body: "", headers: {})
+
+        error = assert_raises(Api::Responses::HttpResponseError) do
+          @client.send_request(endpoint: 'test', http_method: 'get')
+        end
+
+        assert_equal(503, error.http_status)
+        assert_nil(error.body)
+        assert_nil(error.error_info)
+      end
+
       def test_set_api_version_in_config
         WhatsappSdk.configure do |config|
           config.api_version = 'v16.0'
@@ -87,7 +137,7 @@ module WhatsappSdk
 
         assert_includes(middleware_handlers, Faraday::Response::Logger)
         assert_match_logger_output!(logged_string)
-        assert_match('INFO -- response: ', logged_string)
+        assert_match(/INFO -- :? ?response: /, logged_string)
       end
 
       def test_logs_http_requests_into_the_logger_with_response_body
@@ -104,7 +154,7 @@ module WhatsappSdk
 
         logged_string = logger_io.string
         assert_match_logger_output!(logged_string)
-        assert_match('INFO -- response: {"success":true}', logged_string)
+        assert_match(/INFO -- :? ?response: \{"success":true\}/, logged_string)
       end
 
       def test_should_not_log_when_logger_not_configured
@@ -173,10 +223,10 @@ module WhatsappSdk
       end
 
       def assert_match_logger_output!(logged_string)
-        assert_match('INFO -- request: GET https://graph.facebook.com/v19.0/test', logged_string)
-        assert_match('INFO -- request: Authorization: "Bearer test_token"', logged_string)
+        assert_match(%r{INFO -- :? ?request: GET https://graph\.facebook\.com/v19\.0/test}, logged_string)
+        assert_match(/INFO -- :? ?request: Authorization: "Bearer test_token"/, logged_string)
         assert_match('User-Agent: "Faraday', logged_string)
-        assert_match('INFO -- response: Status 200', logged_string)
+        assert_match(/INFO -- :? ?response: Status 200/, logged_string)
       end
     end
   end

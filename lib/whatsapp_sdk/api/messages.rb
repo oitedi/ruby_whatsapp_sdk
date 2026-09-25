@@ -118,7 +118,7 @@ module WhatsappSdk
       # @param audio_id [String] Audio ID.
       # @param link [String] Audio link.
       # @param message_id [String] The id of the message to reply to.
-      # @param voice [Boolean] Whether the audio is a voice note.
+      # @param voice [Boolean] Send an Ogg/Opus voice message instead of basic audio. Defaults to false.
       # @param recipient [String] Recipient' Business-Scoped User ID (BSUID). Optional alternative to recipient_number.
       # @return [MessageDataResponse] Response object.
       def send_audio(
@@ -476,7 +476,7 @@ module WhatsappSdk
       #   (the field Meta uses to address a Business-Scoped User ID).
       # Requires at least one destination.
       def apply_recipient!(params, recipient_number, recipient)
-        if recipient_number.nil? && recipient.nil?
+        if (recipient_number.nil? ? recipient : recipient_number).to_s.strip.empty?
           raise Resource::Errors::MissingArgumentError, "recipient_number or recipient is required"
         end
 

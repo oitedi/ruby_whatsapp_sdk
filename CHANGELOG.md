@@ -1,7 +1,24 @@
 # Unreleased
 
-# v 1.0.3.1 (oitedi fork)
-- Add `recipient` (Business-Scoped User ID / BSUID) support to all `Messages#send_*` methods. When `recipient_number` (phone) is given the payload is unchanged (`to`); when only `recipient` is given the payload uses `recipient` and omits `to` (the field Meta uses to address a BSUID). At least one destination is required.
+# v 1.2.0
+- Expose Graph media upload sessions through the configured client @oitedi [199](https://github.com/ignacio-chiazzo/ruby_whatsapp_sdk/pull/199)
+- Support BSUID recipients and preserve user IDs in message responses @oitedi [198](https://github.com/ignacio-chiazzo/ruby_whatsapp_sdk/pull/198)
+- Add voice message support to audio sends @oitedi [197](https://github.com/ignacio-chiazzo/ruby_whatsapp_sdk/pull/197)
+- Guard `GenericErrorResponse.build_from_response` against non-Hash input @afonso-aguas [195](https://github.com/ignacio-chiazzo/ruby_whatsapp_sdk/pull/195)
+- Fix false-positive `HttpResponseError` on bodies containing "error" substring @afonso-aguas [194](https://github.com/ignacio-chiazzo/ruby_whatsapp_sdk/pull/194)
+
+# v 1.1.0
+- Add support for pagination in template_analytics with 'after' cursor @osvaldo-santos [190](https://github.com/ignacio-chiazzo/ruby_whatsapp_sdk/pull/190) 
+- Add template_analytics feature @osvaldo-santos [189](https://github.com/ignacio-chiazzo/ruby_whatsapp_sdk/pull/189) 
+- Add Business Account API support @osvaldo-santos [187](https://github.com/ignacio-chiazzo/ruby_whatsapp_sdk/pull/187) 
+
+# v 1.0.5
+- Added GET template endpoint. @osvaldo-santos [185](https://github.com/ignacio-chiazzo/ruby_whatsapp_sdk/pull/185)
+- Adding support for named paremeters in Templates API. @osvaldo-santos [184](https://github.com/ignacio-chiazzo/ruby_whatsapp_sdk/pull/184)
+- Fixed bug for empty templates. @osvaldo-santos [183](https://github.com/ignacio-chiazzo/ruby_whatsapp_sdk/pull/183)
+
+# v 1.0.4
+- Support for version 23 and 24 API. [180](https://github.com/ignacio-chiazzo/ruby_whatsapp_sdk/pull/180)
 
 # v 1.0.3
 -  Fix configuration bug setting `api_version` on Configure. @frenesim [#168](https://github.com/ignacio-chiazzo/ruby_whatsapp_sdk/pull/168)
