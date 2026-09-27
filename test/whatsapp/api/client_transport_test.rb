@@ -5,6 +5,7 @@ require 'api/client'
 require 'api/api_configuration'
 require 'whatsapp_sdk'
 require 'stringio'
+require 'timeout'
 
 module WhatsappSdk
   module Api
@@ -94,7 +95,11 @@ module WhatsappSdk
 
       def test_preserves_keyword_style_logger_options
         output = StringIO.new
-        client = Client.new('token', 'v25.0', Logger.new(output), bodies: true, adapter: RecordingAdapter)
+        client = Client.new(
+          'token', 'v25.0', Logger.new(output),
+          bodies: true, headers: false, errors: true,
+          log_level: :debug, formatter: Faraday::Logging::Formatter, adapter: RecordingAdapter
+        )
         client.send_request(endpoint: 'messages', params: { text: 'logged-message' })
 
         assert_includes(output.string, 'text=logged-message')
@@ -110,6 +115,69 @@ module WhatsappSdk
 
         assert_equal([original], RecordingAdapter.closed)
         refute_same(original, RecordingAdapter.requests.last[:adapter])
+      end
+
+      def test_rejects_unknown_keywords_instead_of_silently_losing_timeouts
+        error = assert_raises(ArgumentError) do
+          Client.new('token', 'v25.0', request_option: { timeout: 15 })
+        end
+
+        assert_includes(error.message, 'request_option')
+      end
+
+      def test_close_attempts_every_connection_and_clears_the_cache_even_when_adapters_fail
+        adapter = Class.new(RecordingAdapter) do
+          def close
+            super
+            raise IOError, "close failure #{self.class.closed.length}"
+          end
+        end
+        adapter.requests = []
+        adapter.closed = []
+        client = Client.new('token', 'v25.0', adapter: adapter)
+        client.send_request(endpoint: 'messages')
+        client.send_request(endpoint: 'media', multipart: true)
+        originals = adapter.requests.map { |request| request[:adapter] }
+
+        error = assert_raises(IOError) { client.close }
+
+        assert_equal('close failure 1', error.message)
+        assert_equal(originals, adapter.closed)
+        client.close
+        client.send_request(endpoint: 'messages')
+        refute_includes(originals, adapter.requests.last[:adapter])
+      end
+
+      def test_concurrent_first_requests_share_one_adapter_that_close_can_release
+        entered = Queue.new
+        release = Queue.new
+        adapter = Class.new(RecordingAdapter) do
+          define_method(:initialize) do |*args, &block|
+            super(*args, &block)
+            entered << true
+            release.pop
+          end
+        end
+        adapter.requests = []
+        adapter.closed = []
+        client = Client.new('token', 'v25.0', adapter: adapter)
+        threads = []
+        Timeout.timeout(5) do
+          threads << Thread.new { client.send_request(endpoint: 'messages') }
+          entered.pop
+          threads << Thread.new { client.send_request(endpoint: 'messages') }
+          Thread.pass until threads.last.status == 'sleep'
+          2.times { release << true }
+          threads.each(&:value)
+        end
+        client.close
+
+        adapters = adapter.requests.map { |request| request[:adapter] }
+        assert_equal(2, adapters.size)
+        assert_same(adapters.first, adapters.last)
+        assert_equal([adapters.first], adapter.closed)
+      ensure
+        threads&.each { |thread| thread.kill.join }
       end
     end
   end

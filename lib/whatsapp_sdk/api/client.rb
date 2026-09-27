@@ -20,7 +20,8 @@ module WhatsappSdk
       # @param adapter [Symbol, Class] Faraday adapter; require optional adapters before constructing the client.
       # @param request_options [Hash] Faraday request options, such as open_timeout and timeout in seconds.
       # @param multipart_request_options [Hash] Overrides applied only to multipart requests.
-      # @param legacy_logger_options [Hash] Faraday logging options supplied as keywords.
+      # @param legacy_logger_options [Hash] headers, bodies, errors, log_level, or formatter supplied as keywords.
+      # @raise [ArgumentError] If a keyword or API version is unsupported.
       def initialize(
         access_token = WhatsappSdk.configuration.access_token,
         api_version = WhatsappSdk.configuration.api_version,
@@ -31,6 +32,9 @@ module WhatsappSdk
         multipart_request_options: {},
         **legacy_logger_options
       )
+        unknown_options = legacy_logger_options.keys - %i[headers bodies errors log_level formatter]
+        raise ArgumentError, "Unknown keyword(s): #{unknown_options.join(', ')}" unless unknown_options.empty?
+
         @access_token = access_token
         @logger = logger
         @logger_options = logger_options.merge(legacy_logger_options)
@@ -38,6 +42,7 @@ module WhatsappSdk
         @request_options = request_options.dup.freeze
         @multipart_request_options = multipart_request_options.dup.freeze
         @connections = {}
+        @connections_mutex = Mutex.new
 
         validate_api_version(api_version)
         @api_version = api_version
@@ -102,11 +107,21 @@ module WhatsappSdk
         response
       end
 
-      # Close cached Faraday connections. Later requests create fresh connections.
+      # Close cached Faraday connections. Call only after in-flight requests finish.
+      # Later requests create fresh connections.
       # @return [void]
+      # @raise [StandardError] The first adapter error, after all connections have been closed or attempted.
       def close
-        @connections.each_value(&:close)
-        @connections.clear
+        error = nil
+        @connections_mutex.synchronize do
+          @connections.each_value do |connection|
+            connection.close
+          rescue StandardError => e
+            error ||= e
+          end
+          @connections.clear
+        end
+        raise error if error
       end
 
       private
@@ -124,7 +139,10 @@ module WhatsappSdk
       end
 
       def faraday(url:, multipart: false)
-        @connections[[url, multipart]] ||= build_faraday(url, multipart)
+        @connections_mutex.synchronize do
+          # Faraday also builds its adapter lazily; initialize it before sharing the connection.
+          @connections[[url, multipart]] ||= build_faraday(url, multipart).tap(&:app)
+        end
       end
 
       def build_faraday(url, multipart)
