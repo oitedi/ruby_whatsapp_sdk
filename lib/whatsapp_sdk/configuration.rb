@@ -9,10 +9,19 @@ module WhatsappSdk
   #
   # The gem have access to the client through WhatsappSdk.configuration.client
   class Configuration
-    attr_accessor :access_token, :api_version
+    SETTINGS = %i[access_token api_version logger logger_options adapter request_options
+                  multipart_request_options].freeze
 
     # loggers like ActiveSupport::Logger (Rails.logger) is a subclass of Logger
-    attr_accessor :logger, :logger_options
+    attr_reader(*SETTINGS)
+
+    # Changing a setting makes #client build a new client on its next call.
+    SETTINGS.each do |name|
+      define_method(:"#{name}=") do |value|
+        @client = nil
+        instance_variable_set(:"@#{name}", value)
+      end
+    end
 
     def initialize(
       access_token = "",
@@ -24,10 +33,18 @@ module WhatsappSdk
       @api_version = api_version
       @logger = logger
       @logger_options = logger_options
+      @adapter = nil
+      @request_options = {}
+      @multipart_request_options = {}
     end
 
+    # One client is shared by every API object built from this configuration, so its connections are reused.
+    # @return [Api::Client]
     def client
-      Api::Client.new(access_token, api_version, logger, logger_options)
+      @client ||= Api::Client.new(
+        access_token, api_version, logger, logger_options,
+        adapter: adapter, request_options: request_options, multipart_request_options: multipart_request_options
+      )
     end
   end
 end

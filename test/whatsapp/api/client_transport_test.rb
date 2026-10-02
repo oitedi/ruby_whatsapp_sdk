@@ -34,7 +34,7 @@ module WhatsappSdk
         RecordingAdapter.closed = []
       end
 
-      def test_reuses_transport_per_client_url_and_multipart_mode
+      def test_reuses_transport_per_client_origin_and_multipart_mode
         first = Client.new('first-token', 'v25.0', adapter: RecordingAdapter)
         second = Client.new('second-token', 'v25.0', adapter: RecordingAdapter)
         first.send_request(endpoint: 'messages')
@@ -45,7 +45,23 @@ module WhatsappSdk
 
         adapters = RecordingAdapter.requests.map { |r| r[:adapter] }
         assert_same(adapters[0], adapters[1])
-        assert_equal(4, adapters.uniq.size)
+        assert_same(adapters[0], adapters[3])
+        assert_equal(3, adapters.uniq.size)
+        assert_equal('https://graph.facebook.com/v24.0/messages', RecordingAdapter.requests[3][:url])
+      end
+
+      def test_paging_urls_share_one_connection_and_keep_their_query
+        client = Client.new('token', 'v25.0', adapter: RecordingAdapter)
+        client.send_request(full_url: 'https://graph.facebook.com/v25.0/123/templates?after=a', http_method: 'get')
+        client.send_request(full_url: 'https://graph.facebook.com/v25.0/123/templates?after=b', http_method: 'get',
+                            params: { limit: 2 })
+        client.send_request(endpoint: './upload:abc', params: 'x')
+
+        first, second, upload = RecordingAdapter.requests
+        assert_same(first[:adapter], second[:adapter])
+        assert_equal('https://graph.facebook.com/v25.0/123/templates?after=a', first[:url])
+        assert_equal('https://graph.facebook.com/v25.0/123/templates?after=b&limit=2', second[:url])
+        assert_equal('https://graph.facebook.com/v25.0/upload:abc', upload[:url])
       end
 
       def test_request_token_overrides_do_not_leak_to_other_requests_or_clients
@@ -103,6 +119,72 @@ module WhatsappSdk
         client.send_request(endpoint: 'messages', params: { text: 'logged-message' })
 
         assert_includes(output.string, 'text=logged-message')
+      end
+
+      def test_unknown_positional_logger_options_reach_the_logger
+        output = StringIO.new
+        client = Client.new('token', 'v25.0', Logger.new(output), { bodies: true, custom_formatter_option: 1 },
+                            adapter: RecordingAdapter)
+        client.send_request(endpoint: 'messages', params: { text: 'logged-message' })
+
+        assert_includes(output.string, 'text=logged-message')
+      end
+
+      def test_rejects_unknown_request_options_when_the_client_is_built
+        %i[request_options multipart_request_options].each do |name|
+          error = assert_raises(ArgumentError) { Client.new('token', 'v25.0', name => { read_timout: 5 }) }
+          assert_includes(error.message, 'read_timout')
+        end
+      end
+
+      def test_default_adapter_is_read_when_the_connection_is_built
+        client = Client.new('token', 'v25.0')
+        previous = Faraday.default_adapter
+        Faraday.default_adapter = RecordingAdapter
+        client.send_request(endpoint: 'messages')
+
+        assert_equal(1, RecordingAdapter.requests.size)
+      ensure
+        Faraday.default_adapter = previous
+      end
+
+      def test_close_waits_for_in_flight_requests
+        started = Queue.new
+        finish = Queue.new
+        adapter = Class.new(RecordingAdapter) do
+          define_method(:call) do |env|
+            started << true
+            finish.pop
+            super(env)
+          end
+        end
+        adapter.requests = []
+        adapter.closed = []
+        client = Client.new('token', 'v25.0', adapter: adapter)
+        request = Thread.new { client.send_request(endpoint: 'messages') }
+        started.pop
+        closer = Thread.new { client.close }
+        Thread.pass until closer.status == 'sleep'
+
+        assert_empty(adapter.closed)
+        finish << true
+        Timeout.timeout(5) { [request, closer].each(&:join) }
+        assert_equal(1, adapter.closed.size)
+      ensure
+        [request, closer].compact.each { |thread| thread.kill.join }
+      end
+
+      def test_configuration_shares_one_client_with_its_transport_options
+        config = WhatsappSdk::Configuration.new('token')
+        config.adapter = RecordingAdapter
+        config.request_options = { timeout: 7 }
+        client = config.client
+        client.send_request(endpoint: 'messages')
+
+        assert_same(client, config.client)
+        assert_equal(7, RecordingAdapter.requests.first[:options].timeout)
+        config.access_token = 'new-token'
+        refute_same(client, config.client)
       end
 
       def test_close_releases_connections_and_allows_new_requests
