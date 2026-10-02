@@ -7,6 +7,43 @@ require 'whatsapp_sdk'
 module WhatsappSdk
   module Api
     class OnboardingTest < Minitest::Test
+      def test_raw_onboarding_preserves_status_body_and_headers
+        operations = [
+          ['waba/phone_numbers', lambda {
+                                   @client.phone_numbers.add(business_id: 'waba', country_code: '55',
+                                                             phone_number: '11999999999', verified_name: 'Store',
+                                                             raw_response: true)
+                                 }],
+          ['phone/request_code', lambda {
+                                   @client.phone_numbers.request_code(phone_number_id: 'phone',
+                                                                      code_method: 'SMS', language: 'pt_BR',
+                                                                      raw_response: true)
+                                 }],
+          ['phone/verify_code', lambda {
+                                  @client.phone_numbers.verify_code(phone_number_id: 'phone',
+                                                                    code: '001234', raw_response: true)
+                                }],
+          ['phone/register', -> { @client.phone_numbers.register_number('phone', '001234', raw_response: true) }],
+          ['waba/subscribed_apps', lambda {
+                                     @client.business_accounts.subscribe_app(business_id: 'waba', raw_response: true)
+                                   }]
+        ]
+        responses = [[202, '{"id":"phone","success":false,"extra":"preserved"}'], [502, '<html>Bad gateway</html>']]
+        operations.each do |endpoint, operation|
+          responses.each do |status, body|
+            request = stub_request(:post, "https://graph.facebook.com/v24.0/#{endpoint}")
+                      .to_return(status: status, body: body, headers: { 'Retry-After' => '30' })
+            response = operation.call
+            assert_instance_of(Faraday::Response, response)
+            assert_equal(status, response.status)
+            assert_equal(body, response.body)
+            assert_equal('30', response.headers['retry-after'])
+            assert_requested(request, times: 1)
+            WebMock.reset!
+          end
+        end
+      end
+
       def setup
         @client = Client.new('store-token', 'v24.0')
       end

@@ -6,6 +6,22 @@ require 'whatsapp_sdk'
 module WhatsappSdk
   module Api
     class FlowAssetsTest < Minitest::Test
+      def test_raw_key_configuration_keeps_the_full_http_response
+        request = stub_request(:post, 'https://graph.facebook.com/v24.0/phone/whatsapp_business_encryption')
+                  .to_return(status: 202, body: '{"success":true,"extra":"preserved"}')
+                  .then.to_return(status: 403, body: '<html>Forbidden</html>')
+
+        response = @client.phone_numbers.set_public_key(phone_number_id: 'phone', business_public_key: 'key',
+                                                        raw_response: true)
+        assert_equal(202, response.status)
+        assert_equal('{"success":true,"extra":"preserved"}', response.body)
+        response = @client.phone_numbers.set_public_key(phone_number_id: 'phone', business_public_key: 'key',
+                                                        raw_response: true)
+        assert_equal(403, response.status)
+        assert_equal('<html>Forbidden</html>', response.body)
+        assert_requested(request, times: 2)
+      end
+
       def setup
         @client = Client.new('flow-token', 'v24.0')
       end

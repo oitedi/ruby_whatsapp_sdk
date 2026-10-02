@@ -731,3 +731,8 @@ key.dig("data", 0, "business_public_key_signature_status") # VALID or MISMATCH
 
 Pass the PEM text of a 2048-bit RSA public key. Private key storage and request decryption
 remain in your application. See [Meta's encryption setup](https://developers.facebook.com/documentation/business-messaging/whatsapp/flows/guides/whatsapp-business-encryption).
+
+The onboarding operations (`phone_numbers.add`, `request_code`, `verify_code`, `register_number`,
+`business_accounts.subscribe_app`), `phone_numbers.set_public_key`, and `messages.send_marketing_template`
+also accept `raw_response: true`. This returns the unmodified `Faraday::Response`, including HTTP status,
+headers, and body, without JSON parsing or HTTP error raising. Their default return values stay the same.

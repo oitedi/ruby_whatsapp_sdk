@@ -6,6 +6,27 @@ require 'whatsapp_sdk'
 module WhatsappSdk
   module Api
     class MarketingMessagesTest < Minitest::Test
+      def test_raw_marketing_keeps_metadata_and_non_json_errors
+        body = { contacts: [{ user_id: "BR.123" }],
+                 messages: [{ id: "wamid", message_status: "accepted" }], extra: true }.to_json
+        request = stub_request(:post, 'https://graph.facebook.com/v25.0/sender/marketing_messages')
+                  .to_return(status: 202, body: body, headers: { 'Retry-After' => '30' })
+                  .then.to_return(status: 429, body: '<html>Rate limited</html>')
+
+        VCR.turned_off do
+          response = @messages.send_marketing_template(sender_id: 'sender', recipient: 'BR.123', name: 'offer',
+                                                       language: 'pt_BR', components_json: [], raw_response: true)
+          assert_equal(202, response.status)
+          assert_equal(body, response.body)
+          assert_equal('30', response.headers['retry-after'])
+          response = @messages.send_marketing_template(sender_id: 'sender', recipient: 'BR.123', name: 'offer',
+                                                       language: 'pt_BR', components_json: [], raw_response: true)
+          assert_equal(429, response.status)
+          assert_equal('<html>Rate limited</html>', response.body)
+        end
+        assert_requested(request, times: 2)
+      end
+
       def setup
         @messages = Client.new('marketing-token', 'v25.0').messages
       end

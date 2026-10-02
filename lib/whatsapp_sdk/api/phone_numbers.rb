@@ -48,12 +48,15 @@ module WhatsappSdk
       # @param verified_name [String] Business display name submitted for review.
       # @return [Responses::IdResponse] Created phone number ID.
       # @raise [Responses::HttpResponseError] If Graph rejects the request.
-      def add(business_id:, country_code:, phone_number:, verified_name:)
+      def add(business_id:, country_code:, phone_number:, verified_name:, raw_response: false)
         response = send_request(
           endpoint: "#{business_id}/phone_numbers",
           params: { cc: country_code, phone_number: phone_number, verified_name: verified_name },
-          headers: { 'Content-Type' => 'application/json' }
+          headers: { 'Content-Type' => 'application/json' },
+          **(raw_response ? { raw_response: true } : {})
         )
+        return response if raw_response
+
         Responses::IdResponse.new(response['id'])
       end
 
@@ -64,13 +67,16 @@ module WhatsappSdk
       # @return [Boolean] Whether Graph accepted the request.
       # @raise [ArgumentError] If code_method is unsupported.
       # @raise [Responses::HttpResponseError] If Graph rejects the request.
-      def request_code(phone_number_id:, code_method:, language:)
+      def request_code(phone_number_id:, code_method:, language:, raw_response: false)
         raise ArgumentError, 'code_method must be SMS or VOICE' unless %w[SMS VOICE].include?(code_method)
 
         response = send_request(
           endpoint: "#{phone_number_id}/request_code", params: { code_method: code_method, language: language },
-          headers: { 'Content-Type' => 'application/json' }
+          headers: { 'Content-Type' => 'application/json' },
+          **(raw_response ? { raw_response: true } : {})
         )
+        return response if raw_response
+
         Responses::SuccessResponse.success_response?(response: response)
       end
 
@@ -79,11 +85,14 @@ module WhatsappSdk
       # @param code [String] Verification code; pass a string to preserve leading zeroes.
       # @return [Boolean] Whether verification succeeded.
       # @raise [Responses::HttpResponseError] If Graph rejects the request.
-      def verify_code(phone_number_id:, code:)
+      def verify_code(phone_number_id:, code:, raw_response: false)
         response = send_request(
           endpoint: "#{phone_number_id}/verify_code", params: { code: code },
-          headers: { 'Content-Type' => 'application/json' }
+          headers: { 'Content-Type' => 'application/json' },
+          **(raw_response ? { raw_response: true } : {})
         )
+        return response if raw_response
+
         Responses::SuccessResponse.success_response?(response: response)
       end
 
@@ -92,12 +101,14 @@ module WhatsappSdk
       # @param phone_number_id [Integer] The registered number we want to retrieve.
       # @param pin [Integer] Pin of 6 digits.
       # @return [Boolean] Whether the registration was successful.
-      def register_number(phone_number_id, pin)
+      def register_number(phone_number_id, pin, raw_response: false)
         response = send_request(
           http_method: "post",
           endpoint: "#{phone_number_id}/register",
-          params: { messaging_product: 'whatsapp', pin: pin }
+          params: { messaging_product: 'whatsapp', pin: pin },
+          **(raw_response ? { raw_response: true } : {})
         )
+        return response if raw_response
 
         Api::Responses::SuccessResponse.success_response?(response: response)
       end
@@ -121,12 +132,14 @@ module WhatsappSdk
       # @param business_public_key [String] PEM-encoded 2048-bit RSA public key, including newlines.
       # @return [Boolean] Whether the key was accepted.
       # @raise [Responses::HttpResponseError] If Graph rejects the request.
-      def set_public_key(phone_number_id:, business_public_key:)
+      def set_public_key(phone_number_id:, business_public_key:, raw_response: false)
         response = send_request(
           endpoint: "#{phone_number_id}/whatsapp_business_encryption",
           params: { business_public_key: business_public_key },
-          headers: { 'Content-Type' => 'application/x-www-form-urlencoded' }
+          headers: { 'Content-Type' => 'application/x-www-form-urlencoded' },
+          **(raw_response ? { raw_response: true } : {})
         )
+        return response if raw_response
 
         Responses::SuccessResponse.success_response?(response: response)
       end

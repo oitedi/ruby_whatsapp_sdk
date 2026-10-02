@@ -38,8 +38,11 @@ module WhatsappSdk
       # @param business_id [String, Integer] WhatsApp Business Account ID.
       # @return [Boolean] Whether the subscription succeeded.
       # @raise [Responses::HttpResponseError] If Graph rejects the request.
-      def subscribe_app(business_id:)
-        response = send_request(endpoint: "#{business_id}/subscribed_apps")
+      def subscribe_app(business_id:, raw_response: false)
+        response = send_request(endpoint: "#{business_id}/subscribed_apps",
+                                **(raw_response ? { raw_response: true } : {}))
+        return response if raw_response
+
         Responses::SuccessResponse.success_response?(response: response)
       end
 

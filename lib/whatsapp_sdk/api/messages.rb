@@ -403,7 +403,7 @@ module WhatsappSdk
       # @raise [Api::Responses::HttpResponseError] If Meta rejects the message.
       def send_marketing_template(
         sender_id:, name:, language:, recipient_number: nil, components: nil, components_json: nil, recipient: nil,
-        product_policy: nil
+        product_policy: nil, raw_response: false
       )
         unless product_policy.nil? || %w[STRICT CLOUD_API_FALLBACK].include?(product_policy)
           raise ArgumentError, "product_policy must be STRICT or CLOUD_API_FALLBACK"
@@ -412,7 +412,10 @@ module WhatsappSdk
         params = template_params(name: name, language: language, recipient_number: recipient_number,
                                  components: components, components_json: components_json, recipient: recipient)
         params[:product_policy] = product_policy unless product_policy.nil?
-        response = send_request(endpoint: "#{sender_id}/marketing_messages", params: params, headers: DEFAULT_HEADERS)
+        response = send_request(endpoint: "#{sender_id}/marketing_messages", params: params, headers: DEFAULT_HEADERS,
+                                **(raw_response ? { raw_response: true } : {}))
+        return response if raw_response
+
         Api::Responses::MessageDataResponse.build_from_response(response: response)
       end
 
