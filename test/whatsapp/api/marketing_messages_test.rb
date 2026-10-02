@@ -92,6 +92,18 @@ module WhatsappSdk
         assert_not_requested(:post, 'https://graph.facebook.com/v25.0/sender/marketing_messages')
       end
 
+      def test_send_template_shares_template_validations
+        assert_raises(ArgumentError) do
+          @messages.send_template(sender_id: 'sender', recipient: 'BR.123', name: 'offer', language: 'pt_BR',
+                                  components: [], components_json: [])
+        end
+        assert_raises(Resource::Errors::MissingArgumentError) do
+          @messages.send_template(sender_id: 'sender', recipient: 'BR.123', name: 'offer', language: nil,
+                                  components_json: [])
+        end
+        assert_not_requested(:post, 'https://graph.facebook.com/v25.0/sender/messages')
+      end
+
       def test_normalizes_product_policy_and_sends_message_activity_sharing
         request = stub_request(:post, 'https://graph.facebook.com/v25.0/sender/marketing_messages').with(
           body: hash_including(product_policy: 'STRICT', message_activity_sharing: false)

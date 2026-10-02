@@ -373,6 +373,8 @@ module WhatsappSdk
       # @param recipient [String] Recipient' Business-Scoped User ID (BSUID). Optional alternative to recipient_number.
       #    Not allowed for authentication templates.
       # @return [MessageDataResponse] Response object.
+      # @raise [Resource::Errors::MissingArgumentError] If language, components or a destination are missing.
+      # @raise [ArgumentError] If both components and components_json are given.
       def send_template(
         sender_id:, name:, language:, recipient_number: nil, components: nil, components_json: nil, recipient: nil
       )
