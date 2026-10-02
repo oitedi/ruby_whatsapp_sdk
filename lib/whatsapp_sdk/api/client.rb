@@ -85,7 +85,11 @@ module WhatsappSdk
         @templates ||= WhatsappSdk::Api::Templates.new(self)
       end
 
-      def send_request(endpoint: "", full_url: nil, http_method: "post", params: {}, headers: {}, multipart: false)
+      # @param raw_response [Boolean] Return the Faraday response without JSON parsing or HTTP error raising.
+      # @return [Hash, Array, nil, Faraday::Response] Parsed JSON, or the unmodified HTTP response when requested.
+      # @raise [Api::Responses::HttpResponseError] For Graph errors in the default parsed mode.
+      def send_request(endpoint: "", full_url: nil, http_method: "post", params: {}, headers: {}, multipart: false,
+                       raw_response: false)
         url = request_url(full_url || "#{ApiConfiguration::API_URL}/#{@api_version}/", endpoint)
 
         connection = checkout_connection(url, multipart)
@@ -94,6 +98,8 @@ module WhatsappSdk
         ensure
           checkin_connection
         end
+
+        return response if raw_response
 
         parsed_body = parse_response_body(response.body)
 
@@ -162,7 +168,9 @@ module WhatsappSdk
         return base if endpoint.nil? || endpoint.empty?
 
         base.path += '/' unless base.path.end_with?('/')
-        endpoint = "./#{endpoint}" unless endpoint.start_with?('http://', 'https://', '/', './', '../')
+        if !endpoint.start_with?('http://', 'https://', '/', './', '../') || endpoint.start_with?('//')
+          endpoint = "./#{endpoint}"
+        end
         url = base + endpoint
         url.query ||= base.query
         url

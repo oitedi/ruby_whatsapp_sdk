@@ -75,6 +75,13 @@ module WhatsappSdk
                      RecordingAdapter.requests.map { |r| r[:headers]['Authorization'] })
       end
 
+      def test_network_path_endpoints_do_not_send_the_token_to_another_host
+        client = Client.new('token', 'v25.0', adapter: RecordingAdapter)
+        client.send_request(endpoint: '//attacker.example/path')
+
+        assert_equal('https://graph.facebook.com/v25.0///attacker.example/path', RecordingAdapter.requests.first[:url])
+      end
+
       def test_applies_timeouts_with_multipart_overrides_without_mutating_callers_options
         options = { open_timeout: 5, timeout: 15 }
         client = Client.new('token', 'v25.0', adapter: RecordingAdapter, request_options: options,
