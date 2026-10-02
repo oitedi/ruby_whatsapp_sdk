@@ -7,6 +7,19 @@ require 'tempfile'
 module WhatsappSdk
   module Api
     class FlowsTest < Minitest::Test
+      def test_listing_preserves_http_errors_without_graph_errors
+        [[403, '{}'], [429, '']].each do |status, body|
+          request = stub_request(:get, 'https://graph.facebook.com/v25.0/waba-id/flows?limit=100')
+                    .to_return(status: status, body: body)
+          VCR.turned_off do
+            error = assert_raises(Responses::HttpResponseError) { @client.flows.list(business_id: 'waba-id') }
+            assert_equal(status, error.http_status)
+          end
+          assert_requested(request, times: 1)
+          WebMock.reset!
+        end
+      end
+
       def setup
         @client = Client.new('flow-token', 'v25.0')
       end

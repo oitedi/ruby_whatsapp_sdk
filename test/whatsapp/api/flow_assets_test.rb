@@ -22,6 +22,17 @@ module WhatsappSdk
         assert_requested(request, times: 2)
       end
 
+      def test_asset_listing_preserves_http_errors_without_graph_errors
+        [[403, '{}'], [429, '']].each do |status, body|
+          request = stub_request(:get, 'https://graph.facebook.com/v24.0/flow/assets?limit=100')
+                    .to_return(status: status, body: body)
+          error = assert_raises(Responses::HttpResponseError) { @client.flows.assets(flow_id: 'flow') }
+          assert_equal(status, error.http_status)
+          assert_requested(request, times: 1)
+          WebMock.reset!
+        end
+      end
+
       def setup
         @client = Client.new('flow-token', 'v24.0')
       end
