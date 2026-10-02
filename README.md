@@ -606,6 +606,20 @@ Do you want to contribute and are unsure where to start? Ping me on Twitter, and
 
 Check [Contributing](/CONTRIBUTING.MD) file.
 
+### Inspect the complete HTTP response
+
+```ruby
+response = client.send_request(endpoint: "#{SENDER_ID}/messages", params: message_payload,
+                               headers: { "Content-Type" => "application/json" }, raw_response: true)
+response.status
+response.headers
+response.body
+```
+
+`raw_response: true` returns the Faraday response unchanged, including empty or non-JSON
+error bodies. The caller must check the HTTP status and parse the body. The default mode
+continues to return parsed JSON and raise Graph API errors. Transport exceptions still propagate.
+
 ## Changelog
 
 See [CHANGELOG.md](CHANGELOG.md) for a list of changes.
