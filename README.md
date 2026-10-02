@@ -99,6 +99,38 @@ logger_options = { bodies: true }
 client = WhatsappSdk::Api::Client.new("<ACCESS TOKEN>", "<API VERSION>", logger, logger_options)
 ```
 
+Clients reuse Faraday connections per host and multipart mode. To use persistent
+HTTP connections, install `faraday-net_http_persistent` in your application and require
+it before selecting the adapter:
+
+```ruby
+require "faraday/net_http_persistent"
+
+client = WhatsappSdk::Api::Client.new(
+  "<ACCESS TOKEN>", "v25.0",
+  adapter: :net_http_persistent,
+  request_options: { open_timeout: 5, timeout: 15 },
+  multipart_request_options: { timeout: 60 }
+)
+# Make requests with this client, then release its connections when finished.
+client.close
+```
+
+The default adapter and its timeout defaults are unchanged. These options apply to
+Faraday API requests; `download_file` uses Net::HTTP separately. The SDK does not
+retry requests automatically. Each client keeps its own token and connection cache.
+
+The same options work with the global configuration, which shares one client across
+API objects:
+
+```ruby
+WhatsappSdk.configure do |config|
+  config.access_token = "<ACCESS TOKEN>"
+  config.adapter = :net_http_persistent
+  config.request_options = { open_timeout: 5, timeout: 15 }
+end
+```
+
 ## Set up a Meta app
 
 <details><summary>1) Create a Meta Business app </summary>
