@@ -22,6 +22,7 @@ module WhatsappSdk
       #   Require optional adapters before constructing the client.
       # @param request_options [Hash] Faraday request options, such as open_timeout and timeout in seconds.
       # @param multipart_request_options [Hash] Overrides applied only to multipart requests.
+      # @param middleware [Proc, nil] Called with each new Faraday builder to add middleware, such as faraday-retry.
       # @param legacy_logger_options [Hash] Logger options supplied as keywords. With a logger, every key is passed to
       #   Faraday's logger, so custom formatter options keep working. Without one, only logger keys are accepted.
       # @raise [ArgumentError] If a keyword, request option, or API version is unsupported.
@@ -33,29 +34,34 @@ module WhatsappSdk
         adapter: nil,
         request_options: {},
         multipart_request_options: {},
+        middleware: nil,
         **legacy_logger_options
       )
         # Ruby 2.x turns a positional logger_options hash into keywords, so with a logger every key is a logger option.
         unknown_options = logger ? [] : legacy_logger_options.keys - LOGGER_OPTION_KEYS
         raise ArgumentError, "Unknown keyword(s): #{unknown_options.join(', ')}" unless unknown_options.empty?
 
-        validate_request_options(request_options)
-        validate_request_options(multipart_request_options)
+        self.class.validate_request_options(request_options)
+        self.class.validate_request_options(multipart_request_options)
 
         @access_token = access_token
         @logger = logger
-        @logger_options = logger_options.merge(legacy_logger_options)
+        @logger_options = (logger_options || {}).merge(legacy_logger_options)
         @adapter = adapter
         @request_options = request_options.dup.freeze
         @multipart_request_options = multipart_request_options.dup.freeze
+        @middleware = middleware
         @connections = {}
         @connections_mutex = Mutex.new
-        @connections_idle = ConditionVariable.new
-        @in_flight = 0
-        @closing = false
 
         validate_api_version(api_version)
         @api_version = api_version
+      end
+
+      # @raise [ArgumentError] If a key is not a Faraday request option.
+      def self.validate_request_options(options)
+        unknown = options.keys.map(&:to_sym) - ::Faraday::RequestOptions.members
+        raise ArgumentError, "Unknown request option(s): #{unknown.join(', ')}" unless unknown.empty?
       end
 
       def media
@@ -92,12 +98,8 @@ module WhatsappSdk
                        raw_response: false)
         url = request_url(full_url || "#{ApiConfiguration::API_URL}/#{@api_version}/", endpoint)
 
-        connection = checkout_connection(url, multipart)
-        begin
-          response = connection.public_send(http_method, url.to_s, request_params(params, headers), headers)
-        ensure
-          checkin_connection
-        end
+        response = connection_for(url, multipart).public_send(http_method, url.to_s, request_params(params, headers),
+                                                              headers)
 
         return response if raw_response
 
@@ -126,24 +128,19 @@ module WhatsappSdk
         response
       end
 
-      # Close cached Faraday connections. Waits for in-flight requests to finish and holds new ones until done.
-      # Later requests create fresh connections. Do not call it from inside a request on this client.
+      # Close cached Faraday connections, for example at shutdown. Call it when no request is running on this
+      # client: it does not wait for in-flight requests. Later requests create fresh connections.
       # @return [void]
       # @raise [StandardError] The first adapter error, after all connections have been closed or attempted.
       def close
+        connections = @connections_mutex.synchronize do
+          @connections.values.tap { @connections.clear }
+        end
         error = nil
-        @connections_mutex.synchronize do
-          @closing = true
-          @connections_idle.wait(@connections_mutex) while @in_flight.positive?
-          @connections.each_value do |connection|
-            connection.close
-          rescue StandardError => e
-            error ||= e
-          end
-          @connections.clear
-        ensure
-          @closing = false
-          @connections_idle.broadcast
+        connections.each do |connection|
+          connection.close
+        rescue StandardError => e
+          error ||= e
         end
         raise error if error
       end
@@ -162,7 +159,8 @@ module WhatsappSdk
         params
       end
 
-      # Same join rules as Faraday::Connection#build_exclusive_url, so endpoints like "./upload:abc" stay relative.
+      # Same join rules as Faraday::Connection#build_exclusive_url (copied from Faraday 2.14.1), so endpoints like
+      # "./upload:abc" stay relative.
       def request_url(base_url, endpoint)
         base = URI(base_url)
         return base if endpoint.nil? || endpoint.empty?
@@ -177,21 +175,11 @@ module WhatsappSdk
       end
 
       # Connections are cached per origin, so paging URLs and API versions share one pool.
-      def checkout_connection(url, multipart)
+      def connection_for(url, multipart)
+        origin = "#{url.scheme}://#{url.host}:#{url.port}"
         @connections_mutex.synchronize do
-          @connections_idle.wait(@connections_mutex) while @closing
-          origin = "#{url.scheme}://#{url.host}:#{url.port}"
           # Faraday also builds its adapter lazily; initialize it before sharing the connection.
-          connection = @connections[[origin, multipart]] ||= build_faraday(origin, multipart).tap(&:app)
-          @in_flight += 1
-          connection
-        end
-      end
-
-      def checkin_connection
-        @connections_mutex.synchronize do
-          @in_flight -= 1
-          @connections_idle.broadcast if @in_flight.zero?
+          @connections[[origin, multipart]] ||= build_faraday(origin, multipart).tap(&:app)
         end
       end
 
@@ -200,15 +188,11 @@ module WhatsappSdk
         ::Faraday.new(url, request: options) do |client|
           client.request(:multipart) if multipart
           client.request(:url_encoded)
+          @middleware&.call(client)
           client.adapter(@adapter || ::Faraday.default_adapter)
           client.headers['Authorization'] = "Bearer #{@access_token}" unless @access_token.nil?
           client.response(:logger, @logger, @logger_options) unless @logger.nil?
         end
-      end
-
-      def validate_request_options(options)
-        unknown = options.keys.map(&:to_sym) - ::Faraday::RequestOptions.members
-        raise ArgumentError, "Unknown request option(s): #{unknown.join(', ')}" unless unknown.empty?
       end
 
       def validate_api_version(api_version)

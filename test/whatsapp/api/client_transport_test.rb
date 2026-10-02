@@ -155,32 +155,6 @@ module WhatsappSdk
         Faraday.default_adapter = previous
       end
 
-      def test_close_waits_for_in_flight_requests
-        started = Queue.new
-        finish = Queue.new
-        adapter = Class.new(RecordingAdapter) do
-          define_method(:call) do |env|
-            started << true
-            finish.pop
-            super(env)
-          end
-        end
-        adapter.requests = []
-        adapter.closed = []
-        client = Client.new('token', 'v25.0', adapter: adapter)
-        request = Thread.new { client.send_request(endpoint: 'messages') }
-        started.pop
-        closer = Thread.new { client.close }
-        Thread.pass until closer.status == 'sleep'
-
-        assert_empty(adapter.closed)
-        finish << true
-        Timeout.timeout(5) { [request, closer].each(&:join) }
-        assert_equal(1, adapter.closed.size)
-      ensure
-        [request, closer].compact.each { |thread| thread.kill.join }
-      end
-
       def test_configuration_shares_one_client_with_its_transport_options
         config = WhatsappSdk::Configuration.new('token')
         config.adapter = RecordingAdapter
@@ -192,6 +166,52 @@ module WhatsappSdk
         assert_equal(7, RecordingAdapter.requests.first[:options].timeout)
         config.access_token = 'new-token'
         refute_same(client, config.client)
+      end
+
+      def test_nil_logger_options_are_treated_as_empty
+        Client.new('token', 'v25.0', nil, nil, adapter: RecordingAdapter).send_request(endpoint: 'messages')
+
+        config = WhatsappSdk::Configuration.new('token')
+        config.logger_options = nil
+        config.adapter = RecordingAdapter
+        config.client.send_request(endpoint: 'messages')
+
+        assert_equal(2, RecordingAdapter.requests.size)
+      end
+
+      def test_configuration_hashes_cannot_be_edited_in_place
+        config = WhatsappSdk::Configuration.new('token')
+        options = { timeout: 7 }
+        config.request_options = options
+        config.client
+
+        assert_raises(FrozenError) { config.request_options[:timeout] = 15 }
+        assert_raises(FrozenError) { config.multipart_request_options[:timeout] = 15 }
+        assert_raises(FrozenError) { config.logger_options[:bodies] = true }
+        refute_predicate(options, :frozen?)
+      end
+
+      def test_configuration_rejects_unknown_request_options_when_set
+        config = WhatsappSdk::Configuration.new('token')
+        %i[request_options multipart_request_options].each do |name|
+          error = assert_raises(ArgumentError) { config.public_send(:"#{name}=", { read_timout: 5 }) }
+          assert_includes(error.message, 'read_timout')
+        end
+      end
+
+      def test_middleware_is_added_to_every_connection
+        tagger = Class.new(Faraday::Middleware) do
+          def on_request(env)
+            env.request_headers['X-Middleware'] = 'yes'
+          end
+        end
+        config = WhatsappSdk::Configuration.new('token')
+        config.adapter = RecordingAdapter
+        config.middleware = ->(builder) { builder.use(tagger) }
+        config.client.send_request(endpoint: 'messages')
+        config.client.send_request(endpoint: 'media', multipart: true)
+
+        assert_equal(%w[yes yes], RecordingAdapter.requests.map { |r| r[:headers]['X-Middleware'] })
       end
 
       def test_close_releases_connections_and_allows_new_requests
