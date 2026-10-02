@@ -133,7 +133,8 @@ client = WhatsappSdk::Api::Client.new(
 ```
 
 The same options work with the global configuration, which shares one client across
-API objects:
+API objects. `Client.new` also uses them as defaults, so clients built without these
+keywords get the configured transport:
 
 ```ruby
 WhatsappSdk.configure do |config|

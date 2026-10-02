@@ -168,6 +168,29 @@ module WhatsappSdk
         refute_same(client, config.client)
       end
 
+      def test_client_new_uses_the_global_transport_configuration
+        middleware_calls = 0
+        WhatsappSdk.configure do |config|
+          config.adapter = RecordingAdapter
+          config.request_options = { timeout: 15 }
+          config.multipart_request_options = { timeout: 60 }
+          config.middleware = ->(_builder) { middleware_calls += 1 }
+        end
+        client = Client.new('token', 'v25.0')
+        client.send_request(endpoint: 'messages')
+        client.send_request(endpoint: 'media', multipart: true)
+
+        assert_equal([15, 60], RecordingAdapter.requests.map { |request| request[:options].timeout })
+        assert_equal(2, middleware_calls)
+      ensure
+        WhatsappSdk.configure do |config|
+          config.adapter = nil
+          config.request_options = {}
+          config.multipart_request_options = {}
+          config.middleware = nil
+        end
+      end
+
       def test_nil_logger_options_are_treated_as_empty
         Client.new('token', 'v25.0', nil, nil, adapter: RecordingAdapter).send_request(endpoint: 'messages')
 

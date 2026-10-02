@@ -18,6 +18,7 @@ module WhatsappSdk
       # @param api_version [String] Graph API version.
       # @param logger [Logger, nil] Optional Faraday logger.
       # @param logger_options [Hash] Faraday logging options.
+      # Transport keywords default to WhatsappSdk.configuration, like access_token and api_version.
       # @param adapter [Symbol, Class, nil] Faraday adapter; nil means Faraday.default_adapter at connection build.
       #   Require optional adapters before constructing the client.
       # @param request_options [Hash] Faraday request options, such as open_timeout and timeout in seconds.
@@ -31,10 +32,10 @@ module WhatsappSdk
         api_version = WhatsappSdk.configuration.api_version,
         logger = nil,
         logger_options = {},
-        adapter: nil,
-        request_options: {},
-        multipart_request_options: {},
-        middleware: nil,
+        adapter: WhatsappSdk.configuration.adapter,
+        request_options: WhatsappSdk.configuration.request_options,
+        multipart_request_options: WhatsappSdk.configuration.multipart_request_options,
+        middleware: WhatsappSdk.configuration.middleware,
         **legacy_logger_options
       )
         # Ruby 2.x turns a positional logger_options hash into keywords, so with a logger every key is a logger option.
@@ -58,6 +59,7 @@ module WhatsappSdk
         @api_version = api_version
       end
 
+      # @api private
       # @raise [ArgumentError] If a key is not a Faraday request option.
       def self.validate_request_options(options)
         unknown = options.keys.map(&:to_sym) - ::Faraday::RequestOptions.members
