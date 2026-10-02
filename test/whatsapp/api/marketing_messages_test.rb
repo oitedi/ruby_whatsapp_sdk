@@ -97,14 +97,44 @@ module WhatsappSdk
         assert_not_requested(:post, 'https://graph.facebook.com/v25.0/sender/marketing_messages')
       end
 
-      def test_rejects_missing_components_and_invalid_product_policy
+      def test_rejects_missing_components_both_components_and_missing_language
         assert_raises(Resource::Errors::MissingArgumentError) do
           @messages.send_marketing_template(sender_id: 'sender', recipient: 'BR.123', name: 'offer', language: 'pt_BR')
         end
         assert_raises(ArgumentError) do
           @messages.send_marketing_template(sender_id: 'sender', recipient: 'BR.123', name: 'offer', language: 'pt_BR',
-                                            components_json: [], product_policy: 'UNKNOWN')
+                                            components: [], components_json: [])
         end
+        error = assert_raises(Resource::Errors::MissingArgumentError) do
+          @messages.send_marketing_template(sender_id: 'sender', recipient: 'BR.123', name: 'offer', language: nil,
+                                            components_json: [])
+        end
+        assert_equal('language is required', error.message)
+        assert_not_requested(:post, 'https://graph.facebook.com/v25.0/sender/marketing_messages')
+      end
+
+      def test_send_template_shares_template_validations
+        assert_raises(ArgumentError) do
+          @messages.send_template(sender_id: 'sender', recipient: 'BR.123', name: 'offer', language: 'pt_BR',
+                                  components: [], components_json: [])
+        end
+        assert_raises(Resource::Errors::MissingArgumentError) do
+          @messages.send_template(sender_id: 'sender', recipient: 'BR.123', name: 'offer', language: nil,
+                                  components_json: [])
+        end
+        assert_not_requested(:post, 'https://graph.facebook.com/v25.0/sender/messages')
+      end
+
+      def test_normalizes_product_policy_and_sends_message_activity_sharing
+        request = stub_request(:post, 'https://graph.facebook.com/v25.0/sender/marketing_messages').with(
+          body: hash_including(product_policy: 'STRICT', message_activity_sharing: false)
+        ).to_return(body: { messages: [{ id: 'wamid.policy' }] }.to_json)
+        VCR.turned_off do
+          @messages.send_marketing_template(sender_id: 'sender', recipient: 'BR.123', name: 'offer', language: 'pt_BR',
+                                            components_json: [], product_policy: :strict,
+                                            message_activity_sharing: false)
+        end
+        assert_requested(request)
       end
 
       def test_graph_bsuid_restriction_and_timeout_never_fall_back_or_retry

@@ -1,4 +1,6 @@
 # Unreleased
+- Add `send_marketing_template` for the Marketing Messages API and expose `message_status` on message responses @oitedi [11](https://github.com/oitedi/ruby_whatsapp_sdk/pull/11)
+- `send_template` now raises when `language` is missing or when both `components` and `components_json` are given @oitedi [11](https://github.com/oitedi/ruby_whatsapp_sdk/pull/11)
 
 # v 1.2.0
 - Expose Graph media upload sessions through the configured client @oitedi [199](https://github.com/ignacio-chiazzo/ruby_whatsapp_sdk/pull/199)
