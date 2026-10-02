@@ -116,6 +116,28 @@ module WhatsappSdk
         Api::Responses::SuccessResponse.success_response?(response: response)
       end
 
+      # Configure the public key used for Flow data exchange on this phone number.
+      # @param phone_number_id [String, Integer] Business phone number ID.
+      # @param business_public_key [String] PEM-encoded 2048-bit RSA public key, including newlines.
+      # @return [Boolean] Whether the key was accepted.
+      # @raise [Responses::HttpResponseError] If Graph rejects the request.
+      def set_public_key(phone_number_id:, business_public_key:)
+        response = send_request(
+          endpoint: "#{phone_number_id}/whatsapp_business_encryption",
+          params: { business_public_key: business_public_key },
+          headers: { 'Content-Type' => 'application/x-www-form-urlencoded' }
+        )
+
+        Responses::SuccessResponse.success_response?(response: response)
+      end
+
+      # @param phone_number_id [String, Integer] Business phone number ID.
+      # @return [Hash] Raw Graph response; public key and signature status are nested in the data array.
+      # @raise [Responses::HttpResponseError] If Graph rejects the request.
+      def get_public_key(phone_number_id:)
+        send_request(endpoint: "#{phone_number_id}/whatsapp_business_encryption", http_method: 'get')
+      end
+
       # deprecated methods
       def registered_numbers(business_id)
         warn "[DEPRECATION] `registered_numbers` is deprecated. Please use `list` instead."
