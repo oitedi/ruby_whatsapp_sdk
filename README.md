@@ -640,7 +640,7 @@ assets.records # Raw asset hashes with name, asset_type, and download_url; no au
 client.phone_numbers.set_public_key(phone_number_id: PHONE_NUMBER_ID,
                                    business_public_key: File.read("public.pem"))
 key = client.phone_numbers.get_public_key(phone_number_id: PHONE_NUMBER_ID)
-key["business_public_key_signature_status"] # VALID or MISMATCH
+key.dig("data", 0, "business_public_key_signature_status") # VALID or MISMATCH
 ```
 
 Pass the PEM text of a 2048-bit RSA public key. Private key storage and request decryption

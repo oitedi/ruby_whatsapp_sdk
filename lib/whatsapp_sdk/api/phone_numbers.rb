@@ -86,7 +86,7 @@ module WhatsappSdk
       end
 
       # @param phone_number_id [String, Integer] Business phone number ID.
-      # @return [Hash] Raw public key and business_public_key_signature_status (VALID or MISMATCH).
+      # @return [Hash] Raw Graph response; public key and signature status are nested in the data array.
       # @raise [Responses::HttpResponseError] If Graph rejects the request.
       def get_public_key(phone_number_id:)
         send_request(endpoint: "#{phone_number_id}/whatsapp_business_encryption", http_method: 'get')

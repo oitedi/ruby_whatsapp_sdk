@@ -49,11 +49,15 @@ module WhatsappSdk
       end
 
       def test_reads_the_public_key_and_signature_status_without_hiding_a_mismatch
-        data = { 'business_public_key' => 'stored-public-key', 'business_public_key_signature_status' => 'MISMATCH' }
+        key = { 'business_public_key' => 'stored-public-key', 'business_public_key_signature_status' => 'MISMATCH' }
+        data = { 'data' => [key] }
         request = stub_request(:get, 'https://graph.facebook.com/v24.0/phone/whatsapp_business_encryption')
                   .with(headers: { 'Authorization' => 'Bearer flow-token' }).to_return(body: data.to_json)
 
-        assert_equal(data, @client.phone_numbers.get_public_key(phone_number_id: 'phone'))
+        result = @client.phone_numbers.get_public_key(phone_number_id: 'phone')
+
+        assert_equal(data, result)
+        assert_equal('MISMATCH', result.dig('data', 0, 'business_public_key_signature_status'))
         assert_requested(request, times: 1)
       end
 
