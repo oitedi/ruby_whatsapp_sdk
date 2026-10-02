@@ -601,7 +601,8 @@ a supplied phone number takes precedence. Meta disables delivery optimization fo
 BSUID sends and rejects templates using `bid_spec` for those recipients.
 
 `product_policy: "CLOUD_API_FALLBACK"` asks Meta to handle fallback; `"STRICT"` forbids
-it. Omitting the option leaves Meta's default unchanged. The SDK never retries a
+it; symbols and lowercase are accepted. Pass `message_activity_sharing: true` or `false`
+to set Meta's activity sharing; omitting either option leaves Meta's default unchanged. The SDK never retries a
 failed send or sends a second request to `/messages` after a timeout. Template
 category and account eligibility are enforced by Meta, not inferred from names.
 See [Marketing Messages](https://developers.facebook.com/documentation/business-messaging/whatsapp/marketing-messages/send-marketing-messages/).

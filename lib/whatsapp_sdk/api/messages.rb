@@ -396,23 +396,21 @@ module WhatsappSdk
       # @param components [Array<Resource::Component>, nil] Template component objects.
       # @param components_json [Array<Hash>, nil] Raw components; use [] for a template without parameters.
       # @param recipient [String, nil] BSUID or parent BSUID, used when the phone number is omitted.
-      # @param product_policy [String, nil] STRICT or CLOUD_API_FALLBACK; nil leaves the choice to Meta.
+      # @param product_policy [String, Symbol, nil] STRICT or CLOUD_API_FALLBACK (any case); nil leaves it to Meta.
+      # @param message_activity_sharing [Boolean, nil] Turns message activity sharing on or off; nil leaves it to Meta.
       # @return [Api::Responses::MessageDataResponse] IDs, contacts, and any message_status returned by Meta.
-      # @raise [Resource::Errors::MissingArgumentError] If components or a destination are missing.
-      # @raise [ArgumentError] If product_policy is unsupported.
+      # @raise [Resource::Errors::MissingArgumentError] If language, components or a destination are missing.
+      # @raise [ArgumentError] If both components and components_json are given.
       # @raise [Api::Responses::HttpResponseError] If Meta rejects the message.
       def send_marketing_template(
         sender_id:, name:, language:, recipient_number: nil, components: nil, components_json: nil, recipient: nil,
-        product_policy: nil
+        product_policy: nil, message_activity_sharing: nil
       )
-        unless product_policy.nil? || %w[STRICT CLOUD_API_FALLBACK].include?(product_policy)
-          raise ArgumentError, "product_policy must be STRICT or CLOUD_API_FALLBACK"
-        end
-
         params = template_params(name: name, language: language, recipient_number: recipient_number,
                                  components: components, components_json: components_json, recipient: recipient)
-        params[:product_policy] = product_policy unless product_policy.nil?
-        response = send_request(endpoint: "#{sender_id}/marketing_messages", params: params, headers: DEFAULT_HEADERS)
+        params[:product_policy] = product_policy.to_s.upcase unless product_policy.nil?
+        params[:message_activity_sharing] = message_activity_sharing unless message_activity_sharing.nil?
+        response = send_request(endpoint: marketing_endpoint(sender_id), params: params, headers: DEFAULT_HEADERS)
         Api::Responses::MessageDataResponse.build_from_response(response: response)
       end
 
@@ -474,10 +472,7 @@ module WhatsappSdk
       private
 
       def template_params(name:, language:, recipient_number:, components:, components_json:, recipient:)
-        if !components && !components_json
-          raise Resource::Errors::MissingArgumentError,
-                "components or components_json is required"
-        end
+        validate_template_args!(language, components, components_json)
 
         params = {
           messaging_product: "whatsapp",
@@ -489,7 +484,7 @@ module WhatsappSdk
           }
         }
 
-        params[:template][:language] = { code: language } if language
+        params[:template][:language] = { code: language }
         params[:template][:components] = if components.nil?
                                            components_json
                                          else
@@ -498,8 +493,21 @@ module WhatsappSdk
         apply_recipient!(params, recipient_number, recipient)
       end
 
+      def validate_template_args!(language, components, components_json)
+        if !components && !components_json
+          raise Resource::Errors::MissingArgumentError,
+                "components or components_json is required"
+        end
+        raise ArgumentError, "pass components or components_json, not both" if components && components_json
+        raise Resource::Errors::MissingArgumentError, "language is required" if language.to_s.strip.empty?
+      end
+
       def endpoint(sender_id)
         "#{sender_id}/messages"
+      end
+
+      def marketing_endpoint(sender_id)
+        "#{sender_id}/marketing_messages"
       end
 
       # Applies the destination to the payload.
