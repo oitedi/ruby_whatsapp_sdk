@@ -623,6 +623,20 @@ Code delivery accepts `SMS` or `VOICE` and is not retried automatically. Account
 onboarding state, and storage of identifiers remain the application's responsibility.
 See [Meta onboarding](https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/onboarding-customers-as-a-tech-provider/).
 
+### Inspect the complete HTTP response
+
+```ruby
+response = client.send_request(endpoint: "#{SENDER_ID}/messages", params: message_payload,
+                               headers: { "Content-Type" => "application/json" }, raw_response: true)
+response.status
+response.headers
+response.body
+```
+
+`raw_response: true` returns the Faraday response unchanged, including empty or non-JSON
+error bodies. The caller must check the HTTP status and parse the body. The default mode
+continues to return parsed JSON and raise Graph API errors. Transport exceptions still propagate.
+
 ## Changelog
 
 See [CHANGELOG.md](CHANGELOG.md) for a list of changes.
