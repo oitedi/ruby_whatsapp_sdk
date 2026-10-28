@@ -520,15 +520,28 @@ module WhatsappSdk
       #   identical to the pre-BSUID behavior.
       # - BSUID send (recipient_number absent, recipient present): drops `to` and sets `recipient`
       #   (the field Meta uses to address a Business-Scoped User ID).
+      # - BSUID given as recipient_number ("US.123abc", "US.ENT.123abc"): sent as `recipient`.
+      #   In `to`, Meta drops the country prefix, reads the rest as a phone and fails with 131026.
       # Requires at least one destination.
       def apply_recipient!(params, recipient_number, recipient)
         if (recipient_number.nil? ? recipient : recipient_number).to_s.strip.empty?
           raise Resource::Errors::MissingArgumentError, "recipient_number or recipient is required"
         end
 
+        if bsuid?(recipient_number)
+          recipient = recipient_number
+          recipient_number = nil
+        end
+
         params.delete(:to) if recipient_number.nil?
         params[:recipient] = recipient if recipient_number.nil? && recipient
         params
+      end
+
+      BSUID_FORMAT = /\A[A-Z]{2}\./
+
+      def bsuid?(value)
+        value.is_a?(String) && BSUID_FORMAT.match?(value)
       end
     end
   end

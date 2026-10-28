@@ -25,6 +25,9 @@ module WhatsappSdk
         phone: [{ recipient_number: '16505551234' }, { 'to' => '16505551234' }],
         bsuid: [{ recipient: 'US.123abc' }, { 'recipient' => 'US.123abc' }],
         parent_bsuid: [{ recipient: 'US.ENT.123abc' }, { 'recipient' => 'US.ENT.123abc' }],
+        # Callers that resolve "phone or BSUID" into one value pass the BSUID as recipient_number.
+        bsuid_as_number: [{ recipient_number: 'US.123abc' }, { 'recipient' => 'US.123abc' }],
+        parent_bsuid_as_number: [{ recipient_number: 'US.ENT.123abc' }, { 'recipient' => 'US.ENT.123abc' }],
         both: [{ recipient_number: '16505551234', recipient: 'US.123abc' }, { 'to' => '16505551234' }]
       }
       invalid_destinations = [{}, { recipient: '' }, { recipient: '  ' }, { recipient_number: '' }]
