@@ -28,6 +28,8 @@ module WhatsappSdk
         # Callers that resolve "phone or BSUID" into one value pass the BSUID as recipient_number.
         bsuid_as_number: [{ recipient_number: 'US.123abc' }, { 'recipient' => 'US.123abc' }],
         parent_bsuid_as_number: [{ recipient_number: 'US.ENT.123abc' }, { 'recipient' => 'US.ENT.123abc' }],
+        # Only a well-formed BSUID moves; a lookalike with trailing junk stays in `to`.
+        malformed_bsuid_as_number: [{ recipient_number: 'US.123abc!' }, { 'to' => 'US.123abc!' }],
         both: [{ recipient_number: '16505551234', recipient: 'US.123abc' }, { 'to' => '16505551234' }]
       }
       invalid_destinations = [{}, { recipient: '' }, { recipient: '  ' }, { recipient_number: '' }]
