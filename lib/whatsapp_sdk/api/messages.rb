@@ -538,7 +538,8 @@ module WhatsappSdk
         params
       end
 
-      BSUID_FORMAT = /\A[A-Z]{2}\./
+      # Country code, optional parent marker, then up to 128 alphanumerics. Anything else stays in `to`.
+      BSUID_FORMAT = /\A[A-Z]{2}\.(?:ENT\.)?[A-Za-z0-9]{1,128}\z/
 
       def bsuid?(value)
         value.is_a?(String) && BSUID_FORMAT.match?(value)
